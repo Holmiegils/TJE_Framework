@@ -5,6 +5,7 @@
 #include "graphics/fbo.h"
 #include "graphics/shader.h"
 #include "framework/input.h"
+#include <framework/animation.h>
 
 #include <cmath>
 
@@ -12,8 +13,12 @@
 Mesh* mesh = NULL;
 Texture* texture = NULL;
 Shader* shader = NULL;
+//Animation* anim = NULL;
 float angle = 0;
 float mouse_speed = 100.0f;
+
+Matrix44 mesh_matrix;
+Animator animator;
 
 Game* Game::instance = NULL;
 
@@ -39,12 +44,17 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
 	camera = new Camera();
 	camera->lookAt(Vector3(0.f,100.f, 100.f),Vector3(0.f,0.f,0.f), Vector3(0.f,1.f,0.f)); //position the camera and point to 0,0,0
 	camera->setPerspective(70.f,window_width/(float)window_height,0.1f,10000.f); //set the projection, we want to be perspective
+	
+	animator.playAnimation("data/animations/idle.skanim");
 
 	// Load one texture using the Texture Manager
-	texture = Texture::Get("data/textures/texture.tga");
+	texture = Texture::Get("data/textures/character/Guard_03__diffuse.png");
 
 	// Example of loading Mesh from Mesh Manager
-	mesh = Mesh::Get("data/meshes/box.ASE");
+	mesh = Mesh::Get("data/meshes/character.MESH");
+
+	mesh_matrix.setIdentity();
+	mesh_matrix.scale(0.2f, 0.2f, 0.2f);
 
 	// Example of shader loading using the shaders manager
 	shader = Shader::Get("data/shaders/basic.vs", "data/shaders/texture.fs");
@@ -69,10 +79,6 @@ void Game::render(void)
 	glDisable(GL_BLEND);
 	glEnable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
-   
-	// Create model matrix for cube
-	Matrix44 m;
-	m.rotate(angle*DEG2RAD, Vector3(0.0f, 1.0f, 0.0f));
 
 	if(shader)
 	{
@@ -83,16 +89,18 @@ void Game::render(void)
 		shader->setUniform("u_color", Vector4(1,1,1,1));
 		shader->setUniform("u_viewprojection", camera->viewprojection_matrix );
 		shader->setUniform("u_texture", texture, 0);
-		shader->setUniform("u_model", m);
+		shader->setUniform("u_model", mesh_matrix);
 		shader->setUniform("u_time", time);
 
+		mesh->renderAnimated(GL_TRIANGLES, &animator.getCurrentSkeleton());
+
 		// Do the draw call
-		mesh->render( GL_TRIANGLES );
+		//mesh->render( GL_TRIANGLES );
 
 		// Disable shader
 		shader->disable();
 	}
-
+		
 	// Draw the floor grid
 	drawGrid();
 
@@ -105,6 +113,8 @@ void Game::render(void)
 
 void Game::update(double seconds_elapsed)
 {
+	animator.update(seconds_elapsed);
+
 	float speed = seconds_elapsed * mouse_speed; //the speed is defined by the seconds_elapsed so it goes constant
 
 	// Example
@@ -119,10 +129,22 @@ void Game::update(double seconds_elapsed)
 
 	// Async input to move the camera around
 	if (Input::isKeyPressed(SDL_SCANCODE_LSHIFT) ) speed *= 10; //move faster with left shift
-	if (Input::isKeyPressed(SDL_SCANCODE_W) || Input::isKeyPressed(SDL_SCANCODE_UP)) camera->move(Vector3(0.0f, 0.0f, 1.0f) * speed);
-	if (Input::isKeyPressed(SDL_SCANCODE_S) || Input::isKeyPressed(SDL_SCANCODE_DOWN)) camera->move(Vector3(0.0f, 0.0f,-1.0f) * speed);
-	if (Input::isKeyPressed(SDL_SCANCODE_A) || Input::isKeyPressed(SDL_SCANCODE_LEFT)) camera->move(Vector3(1.0f, 0.0f, 0.0f) * speed);
-	if (Input::isKeyPressed(SDL_SCANCODE_D) || Input::isKeyPressed(SDL_SCANCODE_RIGHT)) camera->move(Vector3(-1.0f,0.0f, 0.0f) * speed);
+	if (Input::isKeyPressed(SDL_SCANCODE_W) || Input::isKeyPressed(SDL_SCANCODE_UP)) {
+		camera->move(Vector3(0.0f, -0.7f, 0.7f) * speed);
+		mesh_matrix.translate(Vector3(0.0f, 0.0f, -1.0f) * speed * 5);
+	}
+	if (Input::isKeyPressed(SDL_SCANCODE_S) || Input::isKeyPressed(SDL_SCANCODE_DOWN)) {
+		camera->move(Vector3(0.0f, 0.7f, -0.7f) * speed);
+		mesh_matrix.translate(Vector3(0.0f, 0.0f, 1.0f) * speed * 5);
+	}
+	if (Input::isKeyPressed(SDL_SCANCODE_A) || Input::isKeyPressed(SDL_SCANCODE_LEFT)) {
+		camera->move(Vector3(1.0f, 0.0f, 0.0f) * speed);
+		mesh_matrix.translate(Vector3(-1.0f, 0.0f, 0.0f) * speed * 5);
+	}
+	if (Input::isKeyPressed(SDL_SCANCODE_D) || Input::isKeyPressed(SDL_SCANCODE_RIGHT)) {
+		camera->move(Vector3(-1.0f, 0.0f, 0.0f) * speed);
+		mesh_matrix.translate(Vector3(1.0f, 0.0f, 0.0f) * speed * 5);
+	}
 }
 
 //Keyboard event handler (sync input)
