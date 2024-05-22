@@ -8,7 +8,7 @@
 #include "framework/entities/entity.h"
 #include "graphics/material.h"
 #include "graphics/EntityMesh.h"
-
+#include <framework/animation.h>
 #include <cmath>
 #include <iostream>
 #include <fstream>
@@ -23,8 +23,12 @@ std::vector<std::string> tokenize(const std::string& str, const std::string& del
 Mesh* mesh = NULL;
 Texture* texture = NULL;
 Shader* shader = NULL;
+//Animation* anim = NULL;
 float angle = 0;
 float mouse_speed = 100.0f;
+
+Matrix44 mesh_matrix;
+Animator animator;
 
 Game* Game::instance = NULL;
 
@@ -154,21 +158,27 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     glEnable(GL_CULL_FACE); //render both sides of every triangle
     glEnable(GL_DEPTH_TEST); //check the occlusions using the Z buffer
 
-    // Create our camera
-    camera = new Camera();
-    camera->lookAt(Vector3(0.f, 100.f, 100.f), Vector3(0.f, 0.f, 0.f), Vector3(0.f, 1.f, 0.f)); //position the camera and point to 0,0,0
-    camera->setPerspective(70.f, window_width / (float)window_height, 0.1f, 10000.f); //set the projection, we want to be perspective
+	// Create our camera
+	camera = new Camera();
+	camera->lookAt(Vector3(0.f,100.f, 100.f),Vector3(0.f,0.f,0.f), Vector3(0.f,1.f,0.f)); //position the camera and point to 0,0,0
+	camera->setPerspective(70.f,window_width/(float)window_height,0.1f,10000.f); //set the projection, we want to be perspective
+	
+	animator.playAnimation("data/animations/idle.skanim");
 
-    // Load one texture using the Texture Manager
-    texture = Texture::Get("data/textures/texture.tga");
+	// Load one texture using the Texture Manager
+	texture = Texture::Get("data/textures/character/Guard_03__diffuse.png");
 
     root = new Entity();
     parseScene("data/myscene.scene", root);
-    
-    
 
-    // Example of shader loading using the shaders manager
-    shader = Shader::Get("data/shaders/basic.vs", "data/shaders/texture.fs");
+	// Example of loading Mesh from Mesh Manager
+	mesh = Mesh::Get("data/meshes/character.MESH");
+
+	mesh_matrix.setIdentity();
+	mesh_matrix.scale(0.2f, 0.2f, 0.2f);
+
+	// Example of shader loading using the shaders manager
+	shader = Shader::Get("data/shaders/basic.vs", "data/shaders/texture.fs");
 
     // Hide the cursor
     SDL_ShowCursor(!mouse_locked); //hide or show the mouse
@@ -210,7 +220,9 @@ void Game::render(void)
 
 void Game::update(double seconds_elapsed)
 {
-    float speed = static_cast<float>(seconds_elapsed * mouse_speed); //the speed is defined by the seconds_elapsed so it goes constant
+	animator.update(seconds_elapsed);
+
+	float speed = seconds_elapsed * mouse_speed; //the speed is defined by the seconds_elapsed so it goes constant
 
     // Example
     angle += static_cast<float>(seconds_elapsed * 10.0f);
@@ -222,12 +234,24 @@ void Game::update(double seconds_elapsed)
         camera->rotate(Input::mouse_delta.y * 0.005f, camera->getLocalVector(Vector3(-1.0f, 0.0f, 0.0f)));
     }
 
-    // Async input to move the camera around
-    if (Input::isKeyPressed(SDL_SCANCODE_LSHIFT)) speed *= 10; //move faster with left shift
-    if (Input::isKeyPressed(SDL_SCANCODE_W) || Input::isKeyPressed(SDL_SCANCODE_UP)) camera->move(Vector3(0.0f, 0.0f, 1.0f) * speed);
-    if (Input::isKeyPressed(SDL_SCANCODE_S) || Input::isKeyPressed(SDL_SCANCODE_DOWN)) camera->move(Vector3(0.0f, 0.0f, -1.0f) * speed);
-    if (Input::isKeyPressed(SDL_SCANCODE_A) || Input::isKeyPressed(SDL_SCANCODE_LEFT)) camera->move(Vector3(1.0f, 0.0f, 0.0f) * speed);
-    if (Input::isKeyPressed(SDL_SCANCODE_D) || Input::isKeyPressed(SDL_SCANCODE_RIGHT)) camera->move(Vector3(-1.0f, 0.0f, 0.0f) * speed);
+	// Async input to move the camera around
+	if (Input::isKeyPressed(SDL_SCANCODE_LSHIFT) ) speed *= 10; //move faster with left shift
+	if (Input::isKeyPressed(SDL_SCANCODE_W) || Input::isKeyPressed(SDL_SCANCODE_UP)) {
+		camera->move(Vector3(0.0f, -0.7f, 0.7f) * speed);
+		mesh_matrix.translate(Vector3(0.0f, 0.0f, -1.0f) * speed * 5);
+	}
+	if (Input::isKeyPressed(SDL_SCANCODE_S) || Input::isKeyPressed(SDL_SCANCODE_DOWN)) {
+		camera->move(Vector3(0.0f, 0.7f, -0.7f) * speed);
+		mesh_matrix.translate(Vector3(0.0f, 0.0f, 1.0f) * speed * 5);
+	}
+	if (Input::isKeyPressed(SDL_SCANCODE_A) || Input::isKeyPressed(SDL_SCANCODE_LEFT)) {
+		camera->move(Vector3(1.0f, 0.0f, 0.0f) * speed);
+		mesh_matrix.translate(Vector3(-1.0f, 0.0f, 0.0f) * speed * 5);
+	}
+	if (Input::isKeyPressed(SDL_SCANCODE_D) || Input::isKeyPressed(SDL_SCANCODE_RIGHT)) {
+		camera->move(Vector3(-1.0f, 0.0f, 0.0f) * speed);
+		mesh_matrix.translate(Vector3(1.0f, 0.0f, 0.0f) * speed * 5);
+	}
 }
 
 // Keyboard event handler (sync input)
