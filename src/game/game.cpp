@@ -204,14 +204,26 @@ void Game::render()
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
+
+
     shader->enable();
 
-    root->render(camera);
-   
+    shader->setUniform("u_color", Vector4(1, 1, 1, 1));
+    shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
+    shader->setUniform("u_texture", texture, 0);
+    shader->setUniform("u_model", mesh_matrix);
+    shader->setUniform("u_time", time);
+
+    
+    mesh->renderAnimated(GL_TRIANGLES, &animator.getCurrentSkeleton());
 
     // Disable shader
     shader->disable();
 
+    shader->enable();
+    root->render(camera);
+
+    shader->disable();
     // Draw the floor grid
     drawGrid();
 
