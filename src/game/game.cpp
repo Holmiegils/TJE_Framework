@@ -22,6 +22,11 @@ Animator animator;
 
 Game* Game::instance = NULL;
 
+float camera_pitch;
+float camera_yaw;
+
+bool is_running = false;
+
 Game::Game(int window_width, int window_height, SDL_Window* window)
 {
 	this->window_width = window_width;
@@ -42,11 +47,9 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
 
 	// Create our camera
 	camera = new Camera();
-	camera->lookAt(Vector3(0.f,100.f, 100.f),Vector3(0.f,0.f,0.f), Vector3(0.f,1.f,0.f)); //position the camera and point to 0,0,0
+	camera->lookAt(Vector3(0.f,1000.f, 1000.f),Vector3(0.f,0.f,0.f), Vector3(0.f,1.f,0.f)); //position the camera and point to 0,0,0
 	camera->setPerspective(70.f,window_width/(float)window_height,0.1f,10000.f); //set the projection, we want to be perspective
 	
-	animator.playAnimation("data/animations/idle.skanim");
-
 	// Load one texture using the Texture Manager
 	texture = Texture::Get("data/textures/character/Guard_03__diffuse.png");
 
@@ -54,13 +57,13 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
 	mesh = Mesh::Get("data/meshes/character.MESH");
 
 	mesh_matrix.setIdentity();
-	mesh_matrix.scale(0.2f, 0.2f, 0.2f);
+	mesh_matrix.rotate(M_PI, Vector3(0.0f, 1.0f, 0.0f));
 
 	// Example of shader loading using the shaders manager
-	shader = Shader::Get("data/shaders/basic.vs", "data/shaders/texture.fs");
+	shader = Shader::Get("data/shaders/skinning.vs", "data/shaders/texture.fs");
 
 	// Hide the cursor
-	SDL_ShowCursor(!mouse_locked); //hide or show the mouse
+	SDL_ShowCursor(mouse_locked); //hide or show the mouse
 }
 
 //what to do when the image has to be draw
@@ -120,31 +123,69 @@ void Game::update(double seconds_elapsed)
 	// Example
 	angle += (float)seconds_elapsed * 10.0f;
 
-	// Mouse input to rotate the cam
-	if (Input::isMousePressed(SDL_BUTTON_LEFT) || mouse_locked) //is left button pressed?
-	{
-		camera->rotate(Input::mouse_delta.x * 0.005f, Vector3(0.0f,-1.0f,0.0f));
-		camera->rotate(Input::mouse_delta.y * 0.005f, camera->getLocalVector( Vector3(-1.0f,0.0f,0.0f)));
-	}
+	camera_pitch += Input::mouse_delta.y * seconds_elapsed;
 
-	// Async input to move the camera around
-	if (Input::isKeyPressed(SDL_SCANCODE_LSHIFT) ) speed *= 10; //move faster with left shift
+	camera_yaw += Input::mouse_delta.x * seconds_elapsed;
+
+
+	Matrix44 pitchmat;
+	pitchmat.setRotation(camera_pitch, Vector3(1, 0, 0));
+
+	Matrix44 yawmat;
+	yawmat.setRotation(camera_yaw, Vector3(0, 1, 0));
+
+	mesh_matrix.setRotation(camera_yaw, Vector3(0, 1, 0));
+
+
+	Matrix44 unified;
+	unified = pitchmat * yawmat;
+	Vector3 front = unified.frontVector();
+
+	/*unified.translate(front * 100);*/
+
+	camera->lookAt(mesh_matrix.getTranslation() - front * 500, mesh_matrix.getTranslation(), Vector3(0,1,0));
+	// Mouse input to rotate the cam
+	//if (Input::isMousePressed(SDL_BUTTON_LEFT) || mouse_locked) //is left button pressed?
+	//{
+	//	camera->rotate(Input::mouse_delta.x * 0.005f, Vector3(0.0f,-1.0f,0.0f));
+	//	camera->rotate(Input::mouse_delta.y * 0.005f, camera->getLocalVector( Vector3(-1.0f,0.0f,0.0f)));
+	//}
+
+	//// Async input to move the camera around
+	//if (Input::isKeyPressed(SDL_SCANCODE_LSHIFT) ) speed *= 10; //move faster with left shift
+
+	bool moving = false;
+
 	if (Input::isKeyPressed(SDL_SCANCODE_W) || Input::isKeyPressed(SDL_SCANCODE_UP)) {
-		camera->move(Vector3(0.0f, -0.7f, 0.7f) * speed);
-		mesh_matrix.translate(Vector3(0.0f, 0.0f, -1.0f) * speed * 5);
+		//mesh_matrix.translate(Vector3(0.0f, 0.0f, 1.0f) * speed * 5);
+		moving = true;
+		if (!is_running) {
+			is_running = true;
+			animator.playAnimation("data/animations/running.skanim");
+		}
 	}
 	if (Input::isKeyPressed(SDL_SCANCODE_S) || Input::isKeyPressed(SDL_SCANCODE_DOWN)) {
-		camera->move(Vector3(0.0f, 0.7f, -0.7f) * speed);
-		mesh_matrix.translate(Vector3(0.0f, 0.0f, 1.0f) * speed * 5);
+		//mesh_matrix.translate(Vector3(0.0f, 0.0f, -1.0f) * speed * 5);
 	}
 	if (Input::isKeyPressed(SDL_SCANCODE_A) || Input::isKeyPressed(SDL_SCANCODE_LEFT)) {
-		camera->move(Vector3(1.0f, 0.0f, 0.0f) * speed);
-		mesh_matrix.translate(Vector3(-1.0f, 0.0f, 0.0f) * speed * 5);
+		//mesh_matrix.translate(Vector3(1.0f, 0.0f, 0.0f) * speed * 5);
 	}
 	if (Input::isKeyPressed(SDL_SCANCODE_D) || Input::isKeyPressed(SDL_SCANCODE_RIGHT)) {
-		camera->move(Vector3(-1.0f, 0.0f, 0.0f) * speed);
-		mesh_matrix.translate(Vector3(1.0f, 0.0f, 0.0f) * speed * 5);
+		//mesh_matrix.translate(Vector3(-1.0f, 0.0f, 0.0f) * speed * 5);
 	}
+	
+	if (!moving) {
+		animator.playAnimation("data/animations/idle.skanim");
+		is_running = false;
+	}
+
+
+	/*if (moving) {
+		animator.playAnimation("data/animations/running.skanim");
+	}
+	else {
+		animator.playAnimation("data/animations/idle.skanim");
+	}*/
 }
 
 //Keyboard event handler (sync input)
