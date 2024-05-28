@@ -149,7 +149,7 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     must_exit = false;
 
     fps = 0;
-    frame = 0;  // Ensure frame is initialized
+    frame = 0; 
     time = 0.0f;
     elapsed_time = 0.0f;
     mouse_locked = false;
@@ -171,8 +171,8 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     root = new Entity();
     parseScene("data/myscene.scene", root);
 
-	// Example of loading Mesh from Mesh Manager
-	mesh = Mesh::Get("data/meshes/character.MESH");
+    // Example of loading Mesh from Mesh Manager
+    mesh = Mesh::Get("data/meshes/character.MESH");
 
 	mesh_matrix.setIdentity();
 	mesh_matrix.scale(0.2f, 0.2f, 0.2f);
@@ -181,7 +181,7 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
 	shader = Shader::Get("data/shaders/basic.vs", "data/shaders/texture.fs");
 
     // Hide the cursor
-    SDL_ShowCursor(!mouse_locked); //hide or show the mouse
+    SDL_ShowCursor(mouse_locked); //hide or show the mouse
 }
 
 // what to do when the image has to be drawn
