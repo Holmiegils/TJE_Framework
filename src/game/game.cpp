@@ -169,6 +169,8 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     camera->lookAt(Vector3(0.f, 1000.f, 1000.f), Vector3(0.f, 0.f, 0.f), Vector3(0.f, 1.f, 0.f)); // position the camera and point to 0,0,0
     camera->setPerspective(70.f, window_width / (float)window_height, 0.1f, 10000.f); // set the projection, we want to be perspective
 
+    animator.playAnimation("data/animations/idle.skanim");
+
     // Load one texture using the Texture Manager
     texture = Texture::Get("data/textures/character/Guard_03__diffuse.png");
 
@@ -179,7 +181,8 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     mesh = Mesh::Get("data/meshes/character.MESH");
 
     mesh_matrix.setIdentity();
-    mesh_matrix.rotate(M_PI, Vector3(0.0f, 1.0f, 0.0f));
+    mesh_matrix.scale(0.1f, 0.1f, 0.1f);
+    //mesh_matrix.rotate(M_PI, Vector3(0.0f, 1.0f, 0.0f));
 
     // Example of shader loading using the shaders manager
     shader = Shader::Get("data/shaders/skinning.vs", "data/shaders/texture.fs");
@@ -222,10 +225,10 @@ void Game::render()
     // Disable shader
     shader->disable();
 
-    shader->enable();
+    /*shader->enable();
     root->render(camera);
 
-    shader->disable();
+    shader->disable();*/
     // Draw the floor grid
     drawGrid();
 
@@ -245,7 +248,10 @@ void Game::update(double seconds_elapsed)
     // Example
     angle += (float)seconds_elapsed * 10.0f;
 
-    camera_pitch += Input::mouse_delta.y * seconds_elapsed;
+    if (camera_pitch + Input::mouse_delta.y * seconds_elapsed < -0.01 && camera_pitch + Input::mouse_delta.y * seconds_elapsed > -1) {
+        camera_pitch += Input::mouse_delta.y * seconds_elapsed;
+    }
+ 
     camera_yaw += Input::mouse_delta.x * seconds_elapsed;
 
     Matrix44 pitchmat;
@@ -254,17 +260,17 @@ void Game::update(double seconds_elapsed)
     Matrix44 yawmat;
     yawmat.setRotation(camera_yaw, Vector3(0, 1, 0));
 
-    mesh_matrix.setRotation(camera_yaw, Vector3(0, 1, 0));
-
     Matrix44 unified;
     unified = pitchmat * yawmat;
     Vector3 front = unified.frontVector();
 
-    camera->lookAt(mesh_matrix.getTranslation() - front * 500, mesh_matrix.getTranslation(), Vector3(0, 1, 0));
+    camera->lookAt(mesh_matrix.getTranslation() - front * 50, mesh_matrix.getTranslation(), Vector3(0, 1, 0));
 
     bool moving = false;
 
     if (Input::isKeyPressed(SDL_SCANCODE_W) || Input::isKeyPressed(SDL_SCANCODE_UP)) {
+        mesh_matrix.translate(yawmat.frontVector());
+
         moving = true;
         if (!is_running) {
             is_running = true;
@@ -272,10 +278,12 @@ void Game::update(double seconds_elapsed)
         }
     }
 
-    if (!moving) {
-        animator.playAnimation("data/animations/idle.skanim");
+    if (!moving && is_running) {
         is_running = false;
+        animator.playAnimation("data/animations/idle.skanim");
     }
+
+    //mesh_matrix.setRotation(camera_yaw, Vector3(0, 1, 0));
 }
 
 // Keyboard event handler (sync input)
