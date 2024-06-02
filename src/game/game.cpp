@@ -185,7 +185,9 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     shader = Shader::Get("data/shaders/skinning.vs", "data/shaders/texture.fs");
 
     // Hide the cursor
-    SDL_ShowCursor(mouse_locked); //hide or show the mouse
+    mouse_locked = !mouse_locked;
+    SDL_ShowCursor(!mouse_locked);
+    SDL_SetRelativeMouseMode((SDL_bool)(mouse_locked));
 }
 
 // what to do when the image has to be drawn
@@ -297,12 +299,7 @@ void Game::onKeyUp(SDL_KeyboardEvent event)
 
 void Game::onMouseButtonDown(SDL_MouseButtonEvent event)
 {
-    if (event.button == SDL_BUTTON_MIDDLE) // middle mouse
-    {
-        mouse_locked = !mouse_locked;
-        SDL_ShowCursor(!mouse_locked);
-        SDL_SetRelativeMouseMode((SDL_bool)(mouse_locked));
-    }
+    // Implementation here
 }
 
 void Game::onMouseButtonUp(SDL_MouseButtonEvent event)
