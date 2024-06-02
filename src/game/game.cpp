@@ -181,7 +181,7 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     mesh = Mesh::Get("data/meshes/character.MESH");
 
     mesh_matrix.setIdentity();
-    mesh_matrix.scale(0.1f, 0.1f, 0.1f);
+    mesh_matrix.scale(0.05f, 0.05f, 0.05f);
     //mesh_matrix.rotate(M_PI, Vector3(0.0f, 1.0f, 0.0f));
 
     // Example of shader loading using the shaders manager
@@ -225,10 +225,10 @@ void Game::render()
     // Disable shader
     shader->disable();
 
-    /*shader->enable();
+    shader->enable();
     root->render(camera);
 
-    shader->disable();*/
+    shader->disable();
     // Draw the floor grid
     drawGrid();
 
@@ -264,12 +264,12 @@ void Game::update(double seconds_elapsed)
     unified = pitchmat * yawmat;
     Vector3 front = unified.frontVector();
 
-    camera->lookAt(mesh_matrix.getTranslation() - front * 50, mesh_matrix.getTranslation(), Vector3(0, 1, 0));
+    camera->lookAt(mesh_matrix.getTranslation() - front * 25, mesh_matrix.getTranslation(), Vector3(0, 1, 0));
 
     bool moving = false;
 
     if (Input::isKeyPressed(SDL_SCANCODE_W) || Input::isKeyPressed(SDL_SCANCODE_UP)) {
-        mesh_matrix.translate(yawmat.frontVector());
+        mesh_matrix.translate(yawmat.frontVector() * 20);
 
         moving = true;
         if (!is_running) {
