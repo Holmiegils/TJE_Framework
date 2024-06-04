@@ -34,6 +34,11 @@ Game* Game::instance = NULL;
 float camera_pitch;
 float camera_yaw;
 
+float character_x_pos = 0;
+float character_y_pos = 0;
+
+float character_facing_rad = 0;
+
 // Declaration of meshes_to_load
 std::unordered_map<std::string, std::vector<Matrix44>> meshes_to_load;
 
@@ -223,12 +228,12 @@ void Game::render()
     mesh->renderAnimated(GL_TRIANGLES, &animator.getCurrentSkeleton());
 
     // Disable shader
-    shader->disable();
+    /*shader->disable();
 
     shader->enable();
     root->render(camera);
 
-    shader->disable();
+    shader->disable();*/
     // Draw the floor grid
     drawGrid();
 
@@ -266,10 +271,15 @@ void Game::update(double seconds_elapsed)
 
     camera->lookAt(mesh_matrix.getTranslation() - front * 25, mesh_matrix.getTranslation(), Vector3(0, 1, 0));
 
+    //std::cout << "The value of character_rotation is: " << character_rotation << std::endl;
+
     bool moving = false;
+    
+    mesh_matrix.setScale(0.05f, 0.05f, 0.05f);
 
     if (Input::isKeyPressed(SDL_SCANCODE_W) || Input::isKeyPressed(SDL_SCANCODE_UP)) {
-        mesh_matrix.translate(yawmat.frontVector() * 20);
+        mesh_matrix.rotate(camera_yaw, Vector3(0, 1, 0));
+        character_y_pos += 1;
 
         moving = true;
         if (!is_running) {
@@ -283,7 +293,7 @@ void Game::update(double seconds_elapsed)
         animator.playAnimation("data/animations/idle.skanim");
     }
 
-    //mesh_matrix.setRotation(camera_yaw, Vector3(0, 1, 0));
+    mesh_matrix.translate(Vector3(character_x_pos, 0, character_y_pos));
 }
 
 // Keyboard event handler (sync input)
