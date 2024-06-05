@@ -34,10 +34,9 @@ Game* Game::instance = NULL;
 float camera_pitch;
 float camera_yaw;
 
-float character_x_pos = 0;
-float character_y_pos = 0;
-
 float character_facing_rad = 0;
+
+Vector3 character_pos;
 
 // Declaration of meshes_to_load
 std::unordered_map<std::string, std::vector<Matrix44>> meshes_to_load;
@@ -187,6 +186,7 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
 
     mesh_matrix.setIdentity();
     mesh_matrix.scale(0.05f, 0.05f, 0.05f);
+    character_pos = mesh_matrix.getTranslation();
     //mesh_matrix.rotate(M_PI, Vector3(0.0f, 1.0f, 0.0f));
 
     // Example of shader loading using the shaders manager
@@ -271,15 +271,16 @@ void Game::update(double seconds_elapsed)
 
     camera->lookAt(mesh_matrix.getTranslation() - front * 25, mesh_matrix.getTranslation(), Vector3(0, 1, 0));
 
-    //std::cout << "The value of character_rotation is: " << character_rotation << std::endl;
-
     bool moving = false;
-    
+
     mesh_matrix.setScale(0.05f, 0.05f, 0.05f);
+    mesh_matrix.translate(character_pos);
+    mesh_matrix.rotate(character_facing_rad, Vector3(0, 1, 0));
 
     if (Input::isKeyPressed(SDL_SCANCODE_W) || Input::isKeyPressed(SDL_SCANCODE_UP)) {
-        mesh_matrix.rotate(camera_yaw, Vector3(0, 1, 0));
-        character_y_pos += 1;
+        character_facing_rad = camera_yaw;
+        character_pos.x += front.x;
+        character_pos.z += front.z;
 
         moving = true;
         if (!is_running) {
@@ -292,8 +293,7 @@ void Game::update(double seconds_elapsed)
         is_running = false;
         animator.playAnimation("data/animations/idle.skanim");
     }
-
-    mesh_matrix.translate(Vector3(character_x_pos, 0, character_y_pos));
+    //std::cout << character_pos.x << "   " << character_pos.y << "   " << character_pos.z << "   " << std::endl;
 }
 
 // Keyboard event handler (sync input)
