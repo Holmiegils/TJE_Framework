@@ -12,6 +12,7 @@
 #include "framework/entities/entity.h"
 #include "graphics/material.h"
 #include "framework/input.h"
+#include "MainMenu.h"
 
 #include <SDL2/SDL.h>
 
@@ -34,13 +35,14 @@ public:
 
     // some vars
     Camera* camera; // our global camera
-    //bool mouse_locked; // tells if the mouse is locked (not seen)
     Entity* root; // root entity for the scene
+    MainMenu* mainMenu; // our main menu
 
     Game(int window_width, int window_height, SDL_Window* window);
 
     // main functions
     void render();
+    void renderMainMenu();
     void update(double dt);
 
     // input events
@@ -53,9 +55,10 @@ public:
     void onGamepadButtonUp(SDL_JoyButtonEvent event);
     void onResize(int width, int height);
 
-    private:
-        // private variables
-        bool mouse_locked;
-    };
+private:
+    // private variables
+    bool mouse_locked;
+    bool game_started; // New variable to track if the game has started
+};
 
 #endif // GAME_H

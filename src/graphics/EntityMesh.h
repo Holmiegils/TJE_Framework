@@ -18,7 +18,7 @@ public:
     void render(Camera* camera) {
         if (!mesh) return;
 
-        Shader* shader = Shader::Get("data/shaders/basic.vs", "data/shaders/texture.fs");;  // Ensure shader is used here
+        Shader* shader = Shader::Get("data/shaders/basic.vs", "data/shaders/texture.fs");  // Ensure shader is used here
 
         shader->enable();
 

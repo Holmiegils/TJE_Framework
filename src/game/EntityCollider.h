@@ -1,39 +1,34 @@
-#ifndef ENTITYCOLLIDER_H
-#define ENTITYCOLLIDER_H
-
+#include "framework/entities/entity.h"
+#include "graphics/mesh.h"
+#include "framework/utils.h"
 #include "graphics/EntityMesh.h"
-#include <framework/extra/coldet/coldetimpl.h>
+#include <vector>
+
+enum CollisionLayer {
+    NONE = 0,
+    FLOOR = 1 << 0,
+    WALL = 1 << 1,
+    PLAYER = 1 << 2,
+    ENEMY = 1 << 3,
+    SCENARIO = WALL | FLOOR,
+    ALL = 0xFF
+};
 
 class EntityCollider : public EntityMesh {
 public:
     bool is_dynamic = false;
-    int layer = 0; // Layer for collision filtering
-    CollisionModel3D* collision_model;
+    int layer = NONE;
 
-    EntityCollider(Mesh* mesh, const Material& material, int layer = 0)
-        : EntityMesh(mesh, material), layer(layer) {
-        collision_model = newCollisionModel3D();  // Initialize Coldet collision model
-        createCollisionModel();
+    // Adjust the constructor to match EntityMesh parameters
+    EntityCollider(Mesh* mesh, Material material) : EntityMesh(mesh, material) {
+        mesh->createCollisionModel(!is_dynamic); // Initialize collision model
     }
 
-    ~EntityCollider() {
-        delete collision_model;
+    bool testCollision(Matrix44 model, Vector3 ray_origin, Vector3 ray_direction, Vector3& collision, Vector3& normal, float max_ray_dist) {
+        return mesh->testRayCollision(model, ray_origin, ray_direction, collision, normal, max_ray_dist, false);
     }
 
-    void createCollisionModel() {
-        collision_model->setTriangleNumber(mesh->num_triangles);
-        for (int i = 0; i < mesh->num_triangles; ++i) {
-            Vector3 v1 = mesh->getVertex(mesh->indices[i * 3]);
-            Vector3 v2 = mesh->getVertex(mesh->indices[i * 3 + 1]);
-            Vector3 v3 = mesh->getVertex(mesh->indices[i * 3 + 2]);
-            collision_model->addTriangle(v1.ptr(), v2.ptr(), v3.ptr());
-        }
-        collision_model->finalize();
-    }
-
-    bool testSphereCollision(const Vector3& center, float radius, Vector3& collision, Vector3& normal) {
-        return collision_model->sphereCollision(center.ptr(), radius, collision.ptr(), normal.ptr());
+    bool testSphereCollision(Matrix44 model, Vector3 center, float radius, Vector3& collision, Vector3& normal) {
+        return mesh->testSphereCollision(model, center, radius, collision, normal);
     }
 };
-
-#endif

@@ -8,6 +8,7 @@
 #include "framework/entities/entity.h"
 #include "graphics/material.h"
 #include "graphics/EntityMesh.h"
+#include "EntityCollider.h"
 #include <framework/animation.h>
 #include <cmath>
 #include <iostream>
@@ -42,10 +43,8 @@ float character_facing_rad = 0;
 // Declaration of meshes_to_load
 std::unordered_map<std::string, std::vector<Matrix44>> meshes_to_load;
 
-bool parseScene(const char* filename, Entity* root)
-{
+bool parseScene(const char* filename, Entity* root) {
     std::cout << " + Scene loading: " << filename << "..." << std::endl;
-
     std::ifstream file(filename);
 
     if (!file.good()) {
@@ -57,57 +56,32 @@ bool parseScene(const char* filename, Entity* root)
     file >> scene_info >> scene_info;
     int mesh_count = 0;
 
-    // Read file line by line and store mesh path and model info in separated variables
-    while (file >> mesh_name >> model_data)
-    {
-        if (mesh_name[0] == '#')
-            continue;
-
-        // Get all 16 matrix floats
+    while (file >> mesh_name >> model_data) {
+        if (mesh_name[0] == '#') continue;
         std::vector<std::string> tokens = tokenize(model_data, ",");
-
-        // Fill matrix converting chars to floats
         Matrix44 model;
         for (int t = 0; t < tokens.size(); ++t) {
             model.m[t] = (float)atof(tokens[t].c_str());
         }
-
-        // Add model to mesh list (might be instanced!)
         meshes_to_load[mesh_name].push_back(model);
         mesh_count++;
     }
 
-    // Iterate through meshes loaded and create corresponding entities
     for (const auto& data : meshes_to_load) {
         mesh_name = "data/" + data.first;
         const std::vector<Matrix44>& models = data.second;
 
-        // No transforms, nothing to do here
-        if (models.empty())
-            continue;
+        if (models.empty()) continue;
 
         Material mat;
-        EntityMesh* new_entity = nullptr;
+        EntityCollider* new_entity = nullptr;
 
-        size_t tag = data.first.find("@tag");
-
-        if (tag != std::string::npos) {
-            Mesh* mesh = Mesh::Get("...");
-            if (!mesh) {
-                std::cerr << "Mesh loading failed (tag): " << mesh_name << std::endl;
-                continue;
-            }
-            // Create a different type of entity
-            // new_entity = new ...
+        Mesh* mesh = Mesh::Get(mesh_name.c_str());
+        if (!mesh) {
+            std::cerr << "Mesh loading failed: " << mesh_name << std::endl;
+            continue;
         }
-        else {
-            Mesh* mesh = Mesh::Get(mesh_name.c_str());
-            if (!mesh) {
-                std::cerr << "Mesh loading failed: " << mesh_name << std::endl;
-                continue;
-            }
-            new_entity = new EntityMesh(mesh, mat);
-        }
+        new_entity = new EntityCollider(mesh, mat);
 
         if (!new_entity) {
             std::cerr << "Entity creation failed: " << data.first << std::endl;
@@ -115,24 +89,22 @@ bool parseScene(const char* filename, Entity* root)
         }
 
         new_entity->name = data.first;
-
-        // Create instanced entity
+        new_entity->layer = WALL; // Assign appropriate layer here
         if (models.size() > 1) {
             new_entity->isInstanced = true;
-            new_entity->models = models; // Add all instances
+            new_entity->models = models;
         }
-        // Create normal entity
         else {
             new_entity->model = models[0];
         }
 
-        // Add entity to scene root
         root->addChild(new_entity);
     }
 
     std::cout << "Scene [OK] Meshes added: " << mesh_count << std::endl;
     return true;
 }
+
 
 std::vector<std::string> tokenize(const std::string& str, const std::string& delimiters)
 {
@@ -151,7 +123,7 @@ std::vector<std::string> tokenize(const std::string& str, const std::string& del
 
 Game::Game(int window_width, int window_height, SDL_Window* window)
     : window(window), window_width(window_width), window_height(window_height),
-    frame(0), time(0.0f), elapsed_time(0.0f), fps(0), must_exit(false), mouse_locked(false)
+    frame(0), time(0.0f), elapsed_time(0.0f), fps(0), must_exit(false), mouse_locked(false), game_started(false)
 {
     this->window_width = window_width;
     this->window_height = window_height;
@@ -160,7 +132,7 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     must_exit = false;
 
     fps = 0;
-    frame = 0; 
+    frame = 0;
     time = 0.0f;
     elapsed_time = 0.0f;
     mouse_locked = false;
@@ -192,6 +164,9 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     // Example of shader loading using the shaders manager
     shader = Shader::Get("data/shaders/skinning.vs", "data/shaders/texture.fs");
 
+    // Initialize the main menu
+    mainMenu = new MainMenu();
+
     // Hide the cursor
     mouse_locked = !mouse_locked;
     SDL_ShowCursor(!mouse_locked);
@@ -201,6 +176,11 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
 // what to do when the image has to be drawn
 void Game::render()
 {
+    if (!game_started) {
+        renderMainMenu();
+        return;
+    }
+
     // Set the clear color (the background color)
     glClearColor(0.0, 0.0, 0.0, 1.0);
 
@@ -215,7 +195,6 @@ void Game::render()
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
 
-
     shader->enable();
 
     shader->setUniform("u_color", Vector4(1, 1, 1, 1));
@@ -224,16 +203,15 @@ void Game::render()
     shader->setUniform("u_model", mesh_matrix);
     shader->setUniform("u_time", time);
 
-    
     mesh->renderAnimated(GL_TRIANGLES, &animator.getCurrentSkeleton());
 
     // Disable shader
-    /*shader->disable();
+    shader->disable();
 
     shader->enable();
     root->render(camera);
+    shader->disable();
 
-    shader->disable();*/
     // Draw the floor grid
     drawGrid();
 
@@ -244,19 +222,36 @@ void Game::render()
     SDL_GL_SwapWindow(this->window);
 }
 
-void Game::update(double seconds_elapsed)
-{
+void Game::renderMainMenu() {
+    // Set the clear color (the background color)
+    glClearColor(0.0, 0.0, 0.0, 1.0);
+
+    // Clear the window and the depth buffer
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    mainMenu->render();
+
+    // Swap between front buffer and back buffer
+    SDL_GL_SwapWindow(this->window);
+}
+
+void Game::update(double seconds_elapsed) {
+    if (!game_started) {
+        mainMenu->update(seconds_elapsed);
+        if (!mainMenu->isActive()) {
+            game_started = true;
+        }
+        return;
+    }
+
     animator.update(seconds_elapsed);
 
-    float speed = seconds_elapsed * mouse_speed; // the speed is defined by the seconds_elapsed so it goes constant
-
-    // Example
+    float speed = seconds_elapsed * mouse_speed;
     angle += (float)seconds_elapsed * 10.0f;
 
     if (camera_pitch + Input::mouse_delta.y * seconds_elapsed < -0.01 && camera_pitch + Input::mouse_delta.y * seconds_elapsed > -1) {
         camera_pitch += Input::mouse_delta.y * seconds_elapsed;
     }
- 
     camera_yaw += Input::mouse_delta.x * seconds_elapsed;
 
     Matrix44 pitchmat;
@@ -271,20 +266,40 @@ void Game::update(double seconds_elapsed)
 
     camera->lookAt(mesh_matrix.getTranslation() - front * 25, mesh_matrix.getTranslation(), Vector3(0, 1, 0));
 
-    //std::cout << "The value of character_rotation is: " << character_rotation << std::endl;
-
     bool moving = false;
-    
-    mesh_matrix.setScale(0.05f, 0.05f, 0.05f);
 
     if (Input::isKeyPressed(SDL_SCANCODE_W) || Input::isKeyPressed(SDL_SCANCODE_UP)) {
-        mesh_matrix.rotate(camera_yaw, Vector3(0, 1, 0));
-        character_y_pos += 1;
-
+        Vector3 previous_position = mesh_matrix.getTranslation();
+        mesh_matrix.translate(yawmat.frontVector() * 20);
         moving = true;
-        if (!is_running) {
-            is_running = true;
-            animator.playAnimation("data/animations/running.skanim");
+
+        // Check for collisions
+        Vector3 new_position = mesh_matrix.getTranslation();
+        Vector3 ray_direction = new_position - previous_position;
+        float distance = ray_direction.length();
+        ray_direction.normalize();
+
+        Vector3 collision_point, collision_normal;
+        bool collision_detected = false;
+
+        for (Entity* child : root->children) {
+            EntityCollider* collider = dynamic_cast<EntityCollider*>(child);
+            if (collider && (collider->layer & SCENARIO)) {
+                if (collider->testCollision(collider->model, previous_position, ray_direction, collision_point, collision_normal, distance)) {
+                    collision_detected = true;
+                    break;
+                }
+            }
+        }
+
+        if (collision_detected) {
+            mesh_matrix.setTranslation(previous_position);
+        }
+        else {
+            if (!is_running) {
+                is_running = true;
+                animator.playAnimation("data/animations/running.skanim");
+            }
         }
     }
 
@@ -292,13 +307,17 @@ void Game::update(double seconds_elapsed)
         is_running = false;
         animator.playAnimation("data/animations/idle.skanim");
     }
-
-    mesh_matrix.translate(Vector3(character_x_pos, 0, character_y_pos));
 }
+
 
 // Keyboard event handler (sync input)
 void Game::onKeyDown(SDL_KeyboardEvent event)
 {
+    if (!game_started) {
+        mainMenu->handleInput(event);
+        return;
+    }
+
     switch (event.keysym.sym)
     {
     case SDLK_ESCAPE:
