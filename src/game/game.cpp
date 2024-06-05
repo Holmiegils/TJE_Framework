@@ -35,10 +35,9 @@ Game* Game::instance = NULL;
 float camera_pitch;
 float camera_yaw;
 
-float character_x_pos = 0;
-float character_y_pos = 0;
-
 float character_facing_rad = 0;
+
+Vector3 character_pos;
 
 // Declaration of meshes_to_load
 std::unordered_map<std::string, std::vector<Matrix44>> meshes_to_load;
@@ -105,7 +104,6 @@ bool parseScene(const char* filename, Entity* root) {
     return true;
 }
 
-
 std::vector<std::string> tokenize(const std::string& str, const std::string& delimiters)
 {
     std::vector<std::string> tokens;
@@ -119,7 +117,6 @@ std::vector<std::string> tokenize(const std::string& str, const std::string& del
     } while (pos < str.length() && prev < str.length());
     return tokens;
 }
-
 
 Game::Game(int window_width, int window_height, SDL_Window* window)
     : window(window), window_width(window_width), window_height(window_height),
@@ -159,6 +156,7 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
 
     mesh_matrix.setIdentity();
     mesh_matrix.scale(0.05f, 0.05f, 0.05f);
+    character_pos = mesh_matrix.getTranslation();
     //mesh_matrix.rotate(M_PI, Vector3(0.0f, 1.0f, 0.0f));
 
     // Example of shader loading using the shaders manager
@@ -246,7 +244,7 @@ void Game::update(double seconds_elapsed) {
 
     animator.update(seconds_elapsed);
 
-    float speed = seconds_elapsed * mouse_speed;
+    float speed = 5;
     angle += (float)seconds_elapsed * 10.0f;
 
     if (camera_pitch + Input::mouse_delta.y * seconds_elapsed < -0.01 && camera_pitch + Input::mouse_delta.y * seconds_elapsed > -1) {
@@ -282,6 +280,10 @@ void Game::update(double seconds_elapsed) {
         Vector3 collision_point, collision_normal;
         bool collision_detected = false;
 
+        mesh_matrix.setScale(0.05f, 0.05f, 0.05f);
+        mesh_matrix.translate(character_pos);
+        mesh_matrix.rotate(character_facing_rad, Vector3(0, 1, 0));
+
         for (Entity* child : root->children) {
             EntityCollider* collider = dynamic_cast<EntityCollider*>(child);
             if (collider && (collider->layer & SCENARIO)) {
@@ -291,9 +293,13 @@ void Game::update(double seconds_elapsed) {
                 }
             }
         }
+        character_facing_rad = camera_yaw;
+        character_pos.x += front.x * speed;
+        character_pos.z += front.z * speed;
 
         if (collision_detected) {
             mesh_matrix.setTranslation(previous_position);
+           
         }
         else {
             if (!is_running) {
@@ -301,6 +307,7 @@ void Game::update(double seconds_elapsed) {
                 animator.playAnimation("data/animations/running.skanim");
             }
         }
+        
     }
 
     if (!moving && is_running) {
@@ -308,7 +315,6 @@ void Game::update(double seconds_elapsed) {
         animator.playAnimation("data/animations/idle.skanim");
     }
 }
-
 
 // Keyboard event handler (sync input)
 void Game::onKeyDown(SDL_KeyboardEvent event)
