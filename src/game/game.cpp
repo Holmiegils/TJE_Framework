@@ -35,8 +35,11 @@ float camera_pitch;
 float camera_yaw;
 
 float character_facing_rad = 0;
-
 Vector3 character_pos;
+
+bool right_punch = true;
+bool is_punching = false;
+float punch_duration = 0;
 
 // Declaration of meshes_to_load
 std::unordered_map<std::string, std::vector<Matrix44>> meshes_to_load;
@@ -277,23 +280,64 @@ void Game::update(double seconds_elapsed)
     mesh_matrix.translate(character_pos);
     mesh_matrix.rotate(character_facing_rad, Vector3(0, 1, 0));
 
-    if (Input::isKeyPressed(SDL_SCANCODE_W) || Input::isKeyPressed(SDL_SCANCODE_UP)) {
+    if (Input::isKeyPressed(SDL_SCANCODE_W)) {
+        moving = true;
         character_facing_rad = camera_yaw;
         character_pos.x += front.x;
         character_pos.z += front.z;
-
-        moving = true;
-        if (!is_running) {
-            is_running = true;
-            animator.playAnimation("data/animations/running.skanim");
-        }
     }
 
-    if (!moving && is_running) {
+    if (Input::isKeyPressed(SDL_SCANCODE_S)) {
+        moving = true;
+        character_facing_rad = camera_yaw - PI;
+        character_pos.x -= front.x;
+        character_pos.z -= front.z;
+    }
+
+    if (Input::isKeyPressed(SDL_SCANCODE_A)) {
+        moving = true;
+
+        if (Input::isKeyPressed(SDL_SCANCODE_W)) {
+            character_facing_rad = camera_yaw - PI / 4;
+        }
+        else if (Input::isKeyPressed(SDL_SCANCODE_S)) {
+            character_facing_rad = camera_yaw - 3 * PI / 4;
+        }
+        else character_facing_rad = camera_yaw - PI / 2;
+
+        character_pos.x += front.z;
+        character_pos.z -= front.x;
+    }
+
+    if (Input::isKeyPressed(SDL_SCANCODE_D)) {
+        moving = true;
+
+        if (Input::isKeyPressed(SDL_SCANCODE_W)) {
+            character_facing_rad = camera_yaw + PI / 4;
+        }
+        else if (Input::isKeyPressed(SDL_SCANCODE_S)) {
+            character_facing_rad = camera_yaw + 3 * PI / 4;
+        }
+        else character_facing_rad = camera_yaw + PI / 2;
+
+        character_pos.x -= front.z;
+        character_pos.z += front.x;
+    }
+
+    if (moving && !is_running) {
+        is_running = true;
+        animator.playAnimation("data/animations/running.skanim");
+    }
+
+    if (!moving && is_running || !moving && is_punching && punch_duration <= 0) {
         is_running = false;
+        is_punching = false;
         animator.playAnimation("data/animations/idle.skanim");
     }
-    //std::cout << character_pos.x << "   " << character_pos.y << "   " << character_pos.z << "   " << std::endl;
+
+    if (punch_duration > 0) {
+        punch_duration -= seconds_elapsed;
+    }
 }
 
 // Keyboard event handler (sync input)
@@ -317,7 +361,14 @@ void Game::onKeyUp(SDL_KeyboardEvent event)
 
 void Game::onMouseButtonDown(SDL_MouseButtonEvent event)
 {
-    // Implementation here
+    if (punch_duration < 0.5f) {
+        character_facing_rad = camera_yaw;
+        if (right_punch) animator.playAnimation("data/animations/right_punch.skanim");
+        else animator.playAnimation("data/animations/left_punch.skanim");
+        right_punch = !right_punch;
+        is_punching = true;
+        punch_duration = 1;
+    }
 }
 
 void Game::onMouseButtonUp(SDL_MouseButtonEvent event)
