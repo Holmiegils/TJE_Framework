@@ -37,7 +37,13 @@ float camera_yaw;
 
 float character_facing_rad = 0;
 
-Vector3 character_pos;
+// ALEX: WE DON'T NEED IT
+// Vector3 character_pos;
+
+// ALEX: USE THIS TO INCREASE THE POSITION IN Y AND AVOID DOING STUFF ON THE CHARACTER FEET.
+float character_height = 5.0f;
+// ALEX: SIZE OF THE SPHERE OF THE COLLISION TEST (TWEAK THIS VALUE AS YOU LIKE!)
+float sphere_collision_radius = 4.0f;
 
 // Declaration of meshes_to_load
 std::unordered_map<std::string, std::vector<Matrix44>> meshes_to_load;
@@ -156,7 +162,6 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
 
     mesh_matrix.setIdentity();
     mesh_matrix.scale(0.05f, 0.05f, 0.05f);
-    character_pos = mesh_matrix.getTranslation();
     //mesh_matrix.rotate(M_PI, Vector3(0.0f, 1.0f, 0.0f));
 
     // Example of shader loading using the shaders manager
@@ -210,6 +215,10 @@ void Game::render()
     root->render(camera);
     shader->disable();
 
+    // ALEX: THIS IS DEBUG CODE, COMMENT IT WHEN NOT NEEDED
+    //renderDebugCollisions();
+    // 
+
     // Draw the floor grid
     drawGrid();
 
@@ -244,13 +253,14 @@ void Game::update(double seconds_elapsed) {
 
     animator.update(seconds_elapsed);
 
-    float speed = 5;
-    angle += (float)seconds_elapsed * 10.0f;
+    float speed = 15.0f;
 
     if (camera_pitch + Input::mouse_delta.y * seconds_elapsed < -0.01 && camera_pitch + Input::mouse_delta.y * seconds_elapsed > -1) {
         camera_pitch += Input::mouse_delta.y * seconds_elapsed;
     }
-    camera_yaw += Input::mouse_delta.x * seconds_elapsed;
+
+    // ALEX: I HAVE FLIPPED THE DIRECTION SO IT IS MORE INTUITIVE, BUT FEEL FREE TO CHANGE IT AGAIN IF YOU LIKE THE OTHER WAY!
+    camera_yaw -= Input::mouse_delta.x * seconds_elapsed;
 
     Matrix44 pitchmat;
     pitchmat.setRotation(camera_pitch, Vector3(1, 0, 0));
@@ -267,47 +277,54 @@ void Game::update(double seconds_elapsed) {
     bool moving = false;
 
     if (Input::isKeyPressed(SDL_SCANCODE_W) || Input::isKeyPressed(SDL_SCANCODE_UP)) {
+
         Vector3 previous_position = mesh_matrix.getTranslation();
-        mesh_matrix.translate(yawmat.frontVector() * 20);
+
+        // ALEX: DON'T TRANSLATE HERE. DOING IT ONLY IF NO COLLISION.
+        // mesh_matrix.translate(yawmat.frontVector() * 20);
         moving = true;
 
-        // Check for collisions
-        Vector3 new_position = mesh_matrix.getTranslation();
-        Vector3 ray_direction = new_position - previous_position;
-        float distance = ray_direction.length();
-        ray_direction.normalize();
+        // ALEX: NOT USING  IT; WE USE NOW SPHERE COLLISIONS!
+        // Check for collisions 
+        //Vector3 new_position = mesh_matrix.getTranslation();
+        //Vector3 ray_direction = new_position - previous_position;
+        //float distance = ray_direction.length();
+        //ray_direction.normalize();
 
         Vector3 collision_point, collision_normal;
         bool collision_detected = false;
 
-        mesh_matrix.setScale(0.05f, 0.05f, 0.05f);
-        mesh_matrix.translate(character_pos);
-        mesh_matrix.rotate(character_facing_rad, Vector3(0, 1, 0));
+        // ALEX: USE DELTA TIME HERE TO PREVENT MOVEMENT BEING DIFFERENT IN OTHER MACHINE SPECIFICATIONS (!= FPS)
+        front.y = 0.0f; // DISCARD HEIGHT IN THE DIRECTION
+        Vector3 new_position = previous_position + front * seconds_elapsed * speed;
 
         for (Entity* child : root->children) {
             EntityCollider* collider = dynamic_cast<EntityCollider*>(child);
             if (collider && (collider->layer & SCENARIO)) {
-                if (collider->testCollision(collider->model, previous_position, ray_direction, collision_point, collision_normal, distance)) {
+                // ALEX: CHECK FOR COLLISIONS USING A SPHERE IN NEW CHARACTER POSITION + HEIGHT OFFSET
+                // (BASICALLY, CHECK I CAN GO TO THAT POSITION)
+                if (collider->testSphereCollision(collider->model, new_position + Vector3(0.f, character_height, 0.0f), sphere_collision_radius, collision_point, collision_normal)) {
                     collision_detected = true;
                     break;
                 }
             }
         }
-        character_facing_rad = camera_yaw;
-        character_pos.x += front.x * speed;
-        character_pos.z += front.z * speed;
 
-        if (collision_detected) {
-            mesh_matrix.setTranslation(previous_position);
-           
-        }
-        else {
+        character_facing_rad = camera_yaw;
+
+        if (!collision_detected) {
+
+            //  IF  NOT COLLIDED, APPLY NEW POSITION
+
+            mesh_matrix.setTranslation(new_position);
+            mesh_matrix.rotate(character_facing_rad, Vector3(0, 1, 0));
+            mesh_matrix.scale(0.05f, 0.05f, 0.05f);
+
             if (!is_running) {
                 is_running = true;
                 animator.playAnimation("data/animations/running.skanim");
             }
         }
-        
     }
 
     if (!moving && is_running) {
@@ -372,4 +389,28 @@ void Game::onResize(int width, int height)
     camera->aspect = width / (float)height;
     window_width = width;
     window_height = height;
+}
+
+// ALEX: RENDER COLLISION SPHERES AS DEBUG TO CHECK IF WE ARE DOING STUFF CORRECTLY!
+void Game::renderDebugCollisions()
+{
+    Shader* shader = Shader::Get("data/shaders/basic.vs", "data/shaders/flat.fs");
+    Mesh* mesh = Mesh::Get("data/meshes/sphere.obj");
+
+    shader->enable();
+
+    {
+        Matrix44 m;
+        m.setTranslation(mesh_matrix.getTranslation());
+        m.translate(0.0f, character_height, 0.0f);
+        m.scale(sphere_collision_radius, sphere_collision_radius, sphere_collision_radius);
+
+        shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
+        shader->setUniform("u_color", Vector4(0.0f, 1.0f, 0.0f, 1.0f));
+        shader->setUniform("u_model", m);
+
+        mesh->render(GL_LINES);
+    }
+
+    shader->disable();
 }

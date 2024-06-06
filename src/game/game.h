@@ -43,6 +43,7 @@ public:
     // main functions
     void render();
     void renderMainMenu();
+    void renderDebugCollisions();
     void update(double dt);
 
     // input events
