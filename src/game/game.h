@@ -38,6 +38,8 @@ public:
     Entity* root; // root entity for the scene
     MainMenu* mainMenu; // our main menu
 
+    
+
     Game(int window_width, int window_height, SDL_Window* window);
 
     // main functions
@@ -55,6 +57,10 @@ public:
     void onGamepadButtonDown(SDL_JoyButtonEvent event);
     void onGamepadButtonUp(SDL_JoyButtonEvent event);
     void onResize(int width, int height);
+
+    //void renderQuad(Texture* texture, Vector2 position, Vector2 size);
+    void renderQuad(Texture* texture, Vector2 position, Vector2 size, float scale);
+    void renderHUD();
 
 private:
     // private variables

@@ -25,6 +25,13 @@ Shader* shader = NULL;
 float angle = 0;
 float mouse_speed = 100.0f;
 
+// Load HUD textures
+Texture* health_empty = NULL;
+Texture * health_full = NULL;
+Texture * stamina_empty = NULL;
+Texture * stamina_full = NULL;
+
+
 bool is_running = false;
 
 Matrix44 mesh_matrix;
@@ -128,6 +135,38 @@ std::vector<std::string> tokenize(const std::string& str, const std::string& del
     return tokens;
 }
 
+void Game::renderQuad(Texture* texture, Vector2 position, Vector2 size, float scale)
+{
+    Mesh quad;
+    quad.vertices.push_back(Vector3(-0.5, 0.5, 0));
+    quad.uvs.push_back(Vector2(0, 1));
+    quad.vertices.push_back(Vector3(-0.5, -0.5, 0));
+    quad.uvs.push_back(Vector2(0, 0));
+    quad.vertices.push_back(Vector3(0.5, -0.5, 0));
+    quad.uvs.push_back(Vector2(1, 0));
+    quad.vertices.push_back(Vector3(-0.5, 0.5, 0));
+    quad.uvs.push_back(Vector2(0, 1));
+    quad.vertices.push_back(Vector3(0.5, -0.5, 0));
+    quad.uvs.push_back(Vector2(1, 0));
+    quad.vertices.push_back(Vector3(0.5, 0.5, 0));
+    quad.uvs.push_back(Vector2(1, 1));
+
+    Matrix44 model;
+    model.setTranslation(position.x, position.y, 0);
+    model.scale(size.x * scale, size.y, 1);
+
+    Shader* shader = Shader::Get("data/shaders/basic.vs", "data/shaders/texture.fs");
+    shader->enable();
+    shader->setUniform("u_texture", texture, 0);
+    shader->setUniform("u_model", model);
+    shader->setUniform("u_viewprojection", Matrix44::IDENTITY);
+
+    quad.render(GL_TRIANGLES);
+    shader->disable();
+}
+
+
+
 Game::Game(int window_width, int window_height, SDL_Window* window)
     : window(window), window_width(window_width), window_height(window_height),
     frame(0), time(0.0f), elapsed_time(0.0f), fps(0), must_exit(false), mouse_locked(false), game_started(false)
@@ -143,6 +182,13 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     time = 0.0f;
     elapsed_time = 0.0f;
     mouse_locked = false;
+
+    // Load HUD textures
+    health_empty = Texture::Get("data/textures/health_empty.png");
+    health_full = Texture::Get("data/textures/health_full.png");
+    stamina_empty = Texture::Get("data/textures/stamina_empty.png");
+    stamina_full = Texture::Get("data/textures/stamina_full.png");
+
 
     // OpenGL flags
     glEnable(GL_CULL_FACE); // render both sides of every triangle
@@ -219,12 +265,11 @@ void Game::render()
     root->render(camera);
     shader->disable();
 
-    // ALEX: THIS IS DEBUG CODE, COMMENT IT WHEN NOT NEEDED
-    //renderDebugCollisions();
-    // 
+    // Render the HUD
+    renderHUD();
 
     // Draw the floor grid
-    drawGrid();
+    //drawGrid();
 
     // Render the FPS, Draw Calls, etc.
     drawText(2, 2, getGPUStats(), Vector3(1, 1, 1), 2);
@@ -232,6 +277,35 @@ void Game::render()
     // Swap between front buffer and back buffer
     SDL_GL_SwapWindow(this->window);
 }
+
+void Game::renderHUD()
+{
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Define positions and sizes for health and stamina bars
+    Vector2 health_position = Vector2(-0.6f, 0.9f);
+    Vector2 health_size = Vector2(0.6f, 0.1f); // Adjusted size for better visibility
+    Vector2 stamina_position = Vector2(-0.6f, 0.75f);
+    Vector2 stamina_size = Vector2(0.6f, 0.1f); // Adjusted size for better visibility
+
+    // Render empty bars
+    renderQuad(health_empty, health_position, health_size, 1.0f);
+    renderQuad(stamina_empty, stamina_position, stamina_size, 1.0f);
+
+    // Assume some variables health and stamina are between 0 and 1
+    float health = 0.95f; // Example value
+    float stamina = 0.6f; // Example value
+
+    // Render full bars with appropriate scaling
+    renderQuad(health_full, Vector2(health_position.x - (1.0f - health) * health_size.x * 0.5f, health_position.y), health_size, health);
+    renderQuad(stamina_full, Vector2(stamina_position.x - (1.0f - stamina) * stamina_size.x * 0.5f, stamina_position.y), stamina_size, stamina);
+
+    glDisable(GL_BLEND);
+}
+
 
 void Game::renderMainMenu() {
     // Set the clear color (the background color)
