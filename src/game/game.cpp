@@ -30,6 +30,12 @@ Texture* health_empty = NULL;
 Texture * health_full = NULL;
 Texture * stamina_empty = NULL;
 Texture * stamina_full = NULL;
+Texture* heal_button = NULL;
+
+int flask_uses = 5; // Starting number of flask uses
+float current_health = 100.0f; // Starting health
+const float max_health = 100.0f; // Maximum health
+const float heal_amount = 15.0f; // Amount healed per use
 
 
 bool is_running = false;
@@ -188,6 +194,7 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     health_full = Texture::Get("data/textures/health_full.png");
     stamina_empty = Texture::Get("data/textures/stamina_empty.png");
     stamina_full = Texture::Get("data/textures/stamina_full.png");
+    heal_button = Texture::Get("data/textures/heal_button.png");
 
 
     // OpenGL flags
@@ -278,8 +285,7 @@ void Game::render()
     SDL_GL_SwapWindow(this->window);
 }
 
-void Game::renderHUD()
-{
+void Game::renderHUD() {
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
     glEnable(GL_BLEND);
@@ -296,16 +302,26 @@ void Game::renderHUD()
     renderQuad(stamina_empty, stamina_position, stamina_size, 1.0f);
 
     // Assume some variables health and stamina are between 0 and 1
-    float health = 0.95f; // Example value
-    float stamina = 0.6f; // Example value
+    float health = current_health / max_health;
+    float stamina = 0.6f; 
 
     // Render full bars with appropriate scaling
     renderQuad(health_full, Vector2(health_position.x - (1.0f - health) * health_size.x * 0.5f, health_position.y), health_size, health);
     renderQuad(stamina_full, Vector2(stamina_position.x - (1.0f - stamina) * stamina_size.x * 0.5f, stamina_position.y), stamina_size, stamina);
 
+    // Define position and size for the heal button
+    Vector2 heal_button_position = Vector2(0.8f, -0.8f); // Bottom right corner
+    Vector2 heal_button_size = Vector2(0.2f, 0.2f); // Adjust size as needed
+
+    // Render the heal button
+    renderQuad(heal_button, heal_button_position, heal_button_size, 1.0f);
+
+    // Render the flask uses count
+    std::string flask_text = std::to_string(flask_uses);
+    drawText(heal_button_position.x + heal_button_size.x * 0.25f, heal_button_position.y + heal_button_size.y * 0.75f, flask_text, Vector3(1, 1, 1), 2);
+
     glDisable(GL_BLEND);
 }
-
 
 void Game::renderMainMenu() {
     // Set the clear color (the background color)
@@ -357,7 +373,6 @@ void Game::update(double seconds_elapsed) {
     Vector3 position = mesh_matrix.getTranslation();
 
     if (Input::isKeyPressed(SDL_SCANCODE_W)) {
-
         moving = true;
         character_facing_rad = camera_yaw;
         front.y = 0.0f; // DISCARD HEIGHT IN THE DIRECTION
@@ -422,12 +437,8 @@ void Game::update(double seconds_elapsed) {
             }
         }
 
-
-
         if (!collision_detected) {
-
             //  IF  NOT COLLIDED, APPLY NEW POSITION
-
             mesh_matrix.setTranslation(position);
             mesh_matrix.rotate(character_facing_rad, Vector3(0, 1, 0));
             mesh_matrix.scale(0.05f, 0.05f, 0.05f);
@@ -446,23 +457,30 @@ void Game::update(double seconds_elapsed) {
 }
 
 // Keyboard event handler (sync input)
-void Game::onKeyDown(SDL_KeyboardEvent event)
-{
+void Game::onKeyDown(SDL_KeyboardEvent event) {
     if (!game_started) {
         mainMenu->handleInput(event);
         return;
     }
 
-    switch (event.keysym.sym)
-    {
+    switch (event.keysym.sym) {
     case SDLK_ESCAPE:
         must_exit = true;
         break; // ESC key, kill the app
     case SDLK_F1:
         Shader::ReloadAll();
         break;
+    case SDLK_e: // Handle the healing input here if necessary
+        if (flask_uses > 0) {
+            if (current_health < max_health) {
+                current_health = std::min(max_health, current_health + heal_amount);
+                flask_uses--;
+            }
+        }
+        break;
     }
 }
+
 
 void Game::onKeyUp(SDL_KeyboardEvent event)
 {
