@@ -27,10 +27,13 @@ float mouse_speed = 100.0f;
 
 // Load HUD textures
 Texture* health_empty = NULL;
-Texture * health_full = NULL;
-Texture * stamina_empty = NULL;
-Texture * stamina_full = NULL;
-Texture* heal_button = NULL;
+Texture* health_full = NULL;
+Texture* stamina_empty = NULL;
+Texture* stamina_full = NULL;
+Texture* heal_button_0 = NULL;
+Texture* heal_button_1 = NULL;
+Texture* heal_button_2 = NULL;
+Texture* heal_button_3 = NULL;
 
 int flask_uses = 5; // Starting number of flask uses
 float current_health = 100.0f; // Starting health
@@ -194,7 +197,10 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     health_full = Texture::Get("data/textures/health_full.png");
     stamina_empty = Texture::Get("data/textures/stamina_empty.png");
     stamina_full = Texture::Get("data/textures/stamina_full.png");
-    heal_button = Texture::Get("data/textures/heal_button.png");
+    heal_button_0 = Texture::Get("data/textures/heal_button_0.png");
+    heal_button_1 = Texture::Get("data/textures/heal_button_1.png");
+    heal_button_2 = Texture::Get("data/textures/heal_button_2.png");
+    heal_button_3 = Texture::Get("data/textures/heal_button_3.png");
 
 
     // OpenGL flags
@@ -303,7 +309,7 @@ void Game::renderHUD() {
 
     // Assume some variables health and stamina are between 0 and 1
     float health = current_health / max_health;
-    float stamina = 0.6f; 
+    float stamina = 0.6f;
 
     // Render full bars with appropriate scaling
     renderQuad(health_full, Vector2(health_position.x - (1.0f - health) * health_size.x * 0.5f, health_position.y), health_size, health);
@@ -313,16 +319,23 @@ void Game::renderHUD() {
     Vector2 heal_button_position = Vector2(0.8f, -0.8f); // Bottom right corner
     Vector2 heal_button_size = Vector2(0.2f, 0.2f); // Adjust size as needed
 
+    // Choose the appropriate heal button texture based on flask_uses
+    Texture* heal_button = heal_button_0;
+    if (flask_uses == 1) {
+        heal_button = heal_button_1;
+    }
+    else if (flask_uses == 2) {
+        heal_button = heal_button_2;
+    }
+    else if (flask_uses == 3) {
+        heal_button = heal_button_3;
+    }
+
     // Render the heal button
     renderQuad(heal_button, heal_button_position, heal_button_size, 1.0f);
 
-    // Render the flask uses count
-    std::string flask_text = std::to_string(flask_uses);
-    drawText(heal_button_position.x + heal_button_size.x * 0.25f, heal_button_position.y + heal_button_size.y * 0.75f, flask_text, Vector3(1, 1, 1), 2);
-
     glDisable(GL_BLEND);
 }
-
 void Game::renderMainMenu() {
     // Set the clear color (the background color)
     glClearColor(0.0, 0.0, 0.0, 1.0);
@@ -347,7 +360,7 @@ void Game::update(double seconds_elapsed) {
 
     animator.update(seconds_elapsed);
 
-    float speed = 15.0f;
+    float speed = 25.0f;
 
     if (camera_pitch + Input::mouse_delta.y * seconds_elapsed < -0.01 && camera_pitch + Input::mouse_delta.y * seconds_elapsed > -1) {
         camera_pitch += Input::mouse_delta.y * seconds_elapsed;
