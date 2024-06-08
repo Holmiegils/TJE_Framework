@@ -9,6 +9,7 @@
 #include "graphics/material.h"
 #include "graphics/EntityMesh.h"
 #include "EntityCollider.h"
+#include "framework/bass.h"
 #include <framework/animation.h>
 #include <cmath>
 #include <iostream>
@@ -40,6 +41,8 @@ float current_health = 100.0f; // Starting health
 const float max_health = 100.0f; // Maximum health
 const float heal_amount = 15.0f; // Amount healed per use
 
+HSAMPLE hSample; // Handler to store one sample
+HCHANNEL hSampleChannel; // Handler to store one channel
 
 bool is_running = false;
 
@@ -174,7 +177,22 @@ void Game::renderQuad(Texture* texture, Vector2 position, Vector2 size, float sc
     shader->disable();
 }
 
+void Game::loadAudio() {
+    // Load sample from disk
+    hSample = BASS_SampleLoad(false, "data/audio/background_music.mp3", 0, 0, 3, 0);
+    if (hSample == 0) {
+        std::cerr << "Error loading audio sample" << std::endl;
+        return;
+    }
 
+    // Store sample channel in handler
+    hSampleChannel = BASS_SampleGetChannel(hSample, false);
+}
+
+void Game::playAudio() {
+    // Play channel
+    BASS_ChannelPlay(hSampleChannel, true);
+}
 
 Game::Game(int window_width, int window_height, SDL_Window* window)
     : window(window), window_width(window_width), window_height(window_height),
@@ -191,6 +209,14 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     time = 0.0f;
     elapsed_time = 0.0f;
     mouse_locked = false;
+
+    // Initialize BASS
+    if (BASS_Init(-1, 44100, 0, 0, NULL) == false) {
+        std::cerr << "Error initializing BASS" << std::endl;
+    }
+
+    // Load audio
+    loadAudio();
 
     // Load HUD textures
     health_empty = Texture::Get("data/textures/health_empty.png");
@@ -354,6 +380,7 @@ void Game::update(double seconds_elapsed) {
         mainMenu->update(seconds_elapsed);
         if (!mainMenu->isActive()) {
             game_started = true;
+            playAudio(); // Play background music when game starts
         }
         return;
     }

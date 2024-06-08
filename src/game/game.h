@@ -43,6 +43,8 @@ public:
     const float max_health = 100.0f;
     const float heal_amount = 10.0f;
 
+    void playAudio();
+
     Game(int window_width, int window_height, SDL_Window* window);
 
     // main functions
@@ -63,6 +65,7 @@ public:
     void onResize(int width, int height);
 
     void renderQuad(Texture* texture, Vector2 position, Vector2 size, float scale);
+    void loadAudio();
     void renderHUD();
 
 private:
