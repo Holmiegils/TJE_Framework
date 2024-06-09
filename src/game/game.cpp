@@ -9,6 +9,7 @@
 #include "graphics/material.h"
 #include "graphics/EntityMesh.h"
 #include "EntityCollider.h"
+#include "framework/bass.h"
 #include <framework/animation.h>
 #include <cmath>
 #include <iostream>
@@ -25,6 +26,24 @@ Shader* shader = NULL;
 // Animation* anim = NULL;
 float angle = 0;
 float mouse_speed = 100.0f;
+
+// Load HUD textures
+Texture* health_empty = NULL;
+Texture* health_full = NULL;
+Texture* stamina_empty = NULL;
+Texture* stamina_full = NULL;
+Texture* heal_button_0 = NULL;
+Texture* heal_button_1 = NULL;
+Texture* heal_button_2 = NULL;
+Texture* heal_button_3 = NULL;
+
+int flask_uses = 5; // Starting number of flask uses
+float current_health = 100.0f; // Starting health
+const float max_health = 100.0f; // Maximum health
+const float heal_amount = 15.0f; // Amount healed per use
+
+HSAMPLE hSample; // Handler to store one sample
+HCHANNEL hSampleChannel; // Handler to store one channel
 
 bool is_running = false;
 
@@ -131,6 +150,53 @@ std::vector<std::string> tokenize(const std::string& str, const std::string& del
     return tokens;
 }
 
+void Game::renderQuad(Texture* texture, Vector2 position, Vector2 size, float scale)
+{
+    Mesh quad;
+    quad.vertices.push_back(Vector3(-0.5, 0.5, 0));
+    quad.uvs.push_back(Vector2(0, 1));
+    quad.vertices.push_back(Vector3(-0.5, -0.5, 0));
+    quad.uvs.push_back(Vector2(0, 0));
+    quad.vertices.push_back(Vector3(0.5, -0.5, 0));
+    quad.uvs.push_back(Vector2(1, 0));
+    quad.vertices.push_back(Vector3(-0.5, 0.5, 0));
+    quad.uvs.push_back(Vector2(0, 1));
+    quad.vertices.push_back(Vector3(0.5, -0.5, 0));
+    quad.uvs.push_back(Vector2(1, 0));
+    quad.vertices.push_back(Vector3(0.5, 0.5, 0));
+    quad.uvs.push_back(Vector2(1, 1));
+
+    Matrix44 model;
+    model.setTranslation(position.x, position.y, 0);
+    model.scale(size.x * scale, size.y, 1);
+
+    Shader* shader = Shader::Get("data/shaders/basic.vs", "data/shaders/texture.fs");
+    shader->enable();
+    shader->setUniform("u_texture", texture, 0);
+    shader->setUniform("u_model", model);
+    shader->setUniform("u_viewprojection", Matrix44::IDENTITY);
+
+    quad.render(GL_TRIANGLES);
+    shader->disable();
+}
+
+void Game::loadAudio() {
+    // Load sample from disk
+    hSample = BASS_SampleLoad(false, "data/audio/background_music.mp3", 0, 0, 3, 0);
+    if (hSample == 0) {
+        std::cerr << "Error loading audio sample" << std::endl;
+        return;
+    }
+
+    // Store sample channel in handler
+    hSampleChannel = BASS_SampleGetChannel(hSample, false);
+}
+
+void Game::playAudio() {
+    // Play channel
+    BASS_ChannelPlay(hSampleChannel, true);
+}
+
 Game::Game(int window_width, int window_height, SDL_Window* window)
     : window(window), window_width(window_width), window_height(window_height),
     frame(0), time(0.0f), elapsed_time(0.0f), fps(0), must_exit(false), mouse_locked(false), game_started(false)
@@ -146,6 +212,25 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     time = 0.0f;
     elapsed_time = 0.0f;
     mouse_locked = false;
+
+    // Initialize BASS
+    if (BASS_Init(-1, 44100, 0, 0, NULL) == false) {
+        std::cerr << "Error initializing BASS" << std::endl;
+    }
+
+    // Load audio
+    loadAudio();
+
+    // Load HUD textures
+    health_empty = Texture::Get("data/textures/health_empty.png");
+    health_full = Texture::Get("data/textures/health_full.png");
+    stamina_empty = Texture::Get("data/textures/stamina_empty.png");
+    stamina_full = Texture::Get("data/textures/stamina_full.png");
+    heal_button_0 = Texture::Get("data/textures/heal_button_0.png");
+    heal_button_1 = Texture::Get("data/textures/heal_button_1.png");
+    heal_button_2 = Texture::Get("data/textures/heal_button_2.png");
+    heal_button_3 = Texture::Get("data/textures/heal_button_3.png");
+
 
     // OpenGL flags
     glEnable(GL_CULL_FACE); // render both sides of every triangle
@@ -223,20 +308,64 @@ void Game::render()
     root->render(camera);
     shader->disable();
 
-    // ALEX: THIS IS DEBUG CODE, COMMENT IT WHEN NOT NEEDED
-    //renderDebugCollisions();
-    // 
-
+    // Render Hulda before the HUD
     hulda->render(camera);
 
-    // Draw the floor grid
-    drawGrid();
+    // Render the HUD
+    renderHUD();
 
     // Render the FPS, Draw Calls, etc.
     drawText(2, 2, getGPUStats(), Vector3(1, 1, 1), 2);
 
     // Swap between front buffer and back buffer
     SDL_GL_SwapWindow(this->window);
+}
+
+void Game::renderHUD() {
+    // Disable depth test and enable blending for HUD rendering
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Define positions and sizes for health and stamina bars
+    Vector2 health_position = Vector2(-0.6f, 0.9f);
+    Vector2 health_size = Vector2(0.6f, 0.1f); // Adjusted size for better visibility
+    Vector2 stamina_position = Vector2(-0.6f, 0.75f);
+    Vector2 stamina_size = Vector2(0.6f, 0.1f); // Adjusted size for better visibility
+
+    // Render empty bars
+    renderQuad(health_empty, health_position, health_size, 1.0f);
+    renderQuad(stamina_empty, stamina_position, stamina_size, 1.0f);
+
+    // Assume some variables health and stamina are between 0 and 1
+    float health = current_health / max_health;
+    float stamina = 0.6f;
+
+    // Render full bars with appropriate scaling
+    renderQuad(health_full, Vector2(health_position.x - (1.0f - health) * health_size.x * 0.5f, health_position.y), health_size, health);
+    renderQuad(stamina_full, Vector2(stamina_position.x - (1.0f - stamina) * stamina_size.x * 0.5f, stamina_position.y), stamina_size, stamina);
+
+    // Define position and size for the heal button
+    Vector2 heal_button_position = Vector2(0.8f, -0.8f); // Bottom right corner
+    Vector2 heal_button_size = Vector2(0.2f, 0.2f); // Adjust size as needed
+
+    // Choose the appropriate heal button texture based on flask_uses
+    Texture* heal_button = heal_button_0;
+    if (flask_uses == 1) {
+        heal_button = heal_button_1;
+    }
+    else if (flask_uses == 2) {
+        heal_button = heal_button_2;
+    }
+    else if (flask_uses == 3) {
+        heal_button = heal_button_3;
+    }
+
+    // Render the heal button
+    renderQuad(heal_button, heal_button_position, heal_button_size, 1.0f);
+
+    glDisable(GL_BLEND);
 }
 
 void Game::renderMainMenu() {
@@ -257,13 +386,14 @@ void Game::update(double seconds_elapsed) {
         mainMenu->update(seconds_elapsed);
         if (!mainMenu->isActive()) {
             game_started = true;
+            playAudio(); // Play background music when game starts
         }
         return;
     }
 
     animator.update(seconds_elapsed);
 
-    float speed = 15.0f;
+    float speed = 25.0f;
 
     if (camera_pitch + Input::mouse_delta.y * seconds_elapsed < -0.01 && camera_pitch + Input::mouse_delta.y * seconds_elapsed > -1) {
         camera_pitch += Input::mouse_delta.y * seconds_elapsed;
@@ -288,7 +418,7 @@ void Game::update(double seconds_elapsed) {
 
     Vector3 position = mesh_matrix.getTranslation();
 
-    if (Input::isKeyPressed(SDL_SCANCODE_W) || Input::isKeyPressed(SDL_SCANCODE_UP)) {
+    if (Input::isKeyPressed(SDL_SCANCODE_W)) {
         moving = true;
         character_facing_rad = camera_yaw;
         front.y = 0.0f; // DISCARD HEIGHT IN THE DIRECTION
@@ -359,12 +489,8 @@ void Game::update(double seconds_elapsed) {
             }
         }
 
-
-
         if (!collision_detected) {
-
             //  IF  NOT COLLIDED, APPLY NEW POSITION
-
             mesh_matrix.setTranslation(position);
             mesh_matrix.rotate(character_facing_rad, Vector3(0, 1, 0));
             mesh_matrix.scale(0.05f, 0.05f, 0.05f);
@@ -381,23 +507,30 @@ void Game::update(double seconds_elapsed) {
 }
 
 // Keyboard event handler (sync input)
-void Game::onKeyDown(SDL_KeyboardEvent event)
-{
+void Game::onKeyDown(SDL_KeyboardEvent event) {
     if (!game_started) {
         mainMenu->handleInput(event);
         return;
     }
 
-    switch (event.keysym.sym)
-    {
+    switch (event.keysym.sym) {
     case SDLK_ESCAPE:
         must_exit = true;
         break; // ESC key, kill the app
     case SDLK_F1:
         Shader::ReloadAll();
         break;
+    case SDLK_e: // Handle the healing input here if necessary
+        if (flask_uses > 0) {
+            if (current_health < max_health) {
+                current_health = std::min(max_health, current_health + heal_amount);
+                flask_uses--;
+            }
+        }
+        break;
     }
 }
+
 
 void Game::onKeyUp(SDL_KeyboardEvent event)
 {

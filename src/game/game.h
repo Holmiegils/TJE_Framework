@@ -34,9 +34,16 @@ public:
     bool must_exit;
 
     // some vars
-    Camera* camera; // our global camera
-    Entity* root; // root entity for the scene
-    MainMenu* mainMenu; // our main menu
+    Camera* camera;
+    Entity* root;
+    MainMenu* mainMenu;
+
+    int flask_uses = 3;
+    float current_health = 10.0f;
+    const float max_health = 100.0f;
+    const float heal_amount = 10.0f;
+
+    void playAudio();
 
     Game(int window_width, int window_height, SDL_Window* window);
 
@@ -44,6 +51,7 @@ public:
     void render();
     void renderMainMenu();
     void renderDebugCollisions();
+    
     void update(double dt);
 
     // input events
@@ -56,10 +64,13 @@ public:
     void onGamepadButtonUp(SDL_JoyButtonEvent event);
     void onResize(int width, int height);
 
+    void renderQuad(Texture* texture, Vector2 position, Vector2 size, float scale);
+    void loadAudio();
+    void renderHUD();
+
 private:
-    // private variables
     bool mouse_locked;
-    bool game_started; // New variable to track if the game has started
+    bool game_started;
 };
 
 #endif // GAME_H
