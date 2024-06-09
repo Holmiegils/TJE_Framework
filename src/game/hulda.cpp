@@ -5,7 +5,7 @@
 #include "game.h"
 #include <iostream>
 
-Hulda::Hulda() : health(100.0f), character_facing_rad(PI/2), is_running(false), punch_duration(0), chase_threshold(100.0f) {
+Hulda::Hulda() : health(50.0f), character_facing_rad(PI/2), is_running(false), punch_duration(0), chase_threshold(100.0f) {
     mesh_matrix.setIdentity();
 }
 

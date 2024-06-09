@@ -365,6 +365,27 @@ void Game::renderHUD() {
     // Render the heal button
     renderQuad(heal_button, heal_button_position, heal_button_size, 1.0f);
 
+    // Define position and size for the Hulda's health bar
+    Vector2 boss_health_position = Vector2(0.0f, -0.9f); // Centered at the bottom of the screen
+    Vector2 boss_health_size = Vector2(1.2f, 0.15f); // Larger size for the boss health bar
+
+    // Calculate Hulda's health percentage
+    float boss_health = hulda->getHealth() / 100.0f; // Assuming Hulda's max health is 100
+
+    // Render empty boss health bar
+    renderQuad(health_empty, boss_health_position, boss_health_size, 1.0f);
+
+    // Render full boss health bar with appropriate scaling
+    renderQuad(health_full, Vector2(boss_health_position.x - (1.0f - boss_health) * boss_health_size.x * 0.5f, boss_health_position.y), boss_health_size, boss_health);
+
+    // Define position and size for the Hulda's image
+    Vector2 hulda_image_position = Vector2(0.0f, -0.72f); // Slightly above the boss health bar
+    Vector2 hulda_image_size = Vector2(0.3f, 0.2f); // Size of the image
+
+    // Load and render the Hulda image
+    Texture* hulda_image = Texture::Get("data/textures/hulda_name.png");
+    renderQuad(hulda_image, hulda_image_position, hulda_image_size, 1.0f);
+
     glDisable(GL_BLEND);
 }
 
