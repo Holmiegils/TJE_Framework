@@ -20,16 +20,6 @@ public:
     void render(Camera* camera);
     void update(double seconds_elapsed, Vector3 character_pos);
 
-    void setPosition(const Vector3& position);
-    Vector3 getPosition() const;
-
-    void setFacing(float facing_rad);
-    float getFacing() const;
-
-    void performAttack();
-    void takeDamage(float amount);
-    bool isDefeated() const;
-
 private:
     Mesh* mesh;
     Texture* texture;
@@ -40,15 +30,9 @@ private:
     bool is_running;
 
     float health;
-    bool defeated;
-    float character_height;
-    float sphere_collision_radius;
     float chase_threshold;
 
-    bool right_punch;
-    bool is_punching;
     float punch_duration;
-    std::string attack_animation;
 };
 
 #endif // HULDA_H

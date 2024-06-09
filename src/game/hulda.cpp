@@ -5,9 +5,7 @@
 #include "game.h"
 #include <iostream>
 
-Hulda::Hulda() : health(100.0f), defeated(false), character_facing_rad(0), is_running(false),
-character_height(5.0f), sphere_collision_radius(4.0f), right_punch(true), is_punching(false), punch_duration(0),
-chase_threshold(100.0f) {
+Hulda::Hulda() : health(100.0f), character_facing_rad(PI/2), is_running(false), punch_duration(0), chase_threshold(100.0f) {
     mesh_matrix.setIdentity();
 }
 
@@ -79,37 +77,4 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
     mesh_matrix.scale(0.1f, 0.1f, 0.1f);
 }
 
-void Hulda::setPosition(const Vector3& position) {
-    mesh_matrix.setTranslation(position);
-}
 
-Vector3 Hulda::getPosition() const {
-    return mesh_matrix.getTranslation();
-}
-
-void Hulda::setFacing(float facing_rad) {
-    character_facing_rad = facing_rad;
-    mesh_matrix.rotate(character_facing_rad, Vector3(0, 1, 0));
-    //mesh_matrix.scale(0.05f, 0.05f, 0.05f);
-}
-
-float Hulda::getFacing() const {
-    return character_facing_rad;
-}
-
-void Hulda::performAttack() {
-    animator.playAnimation("data/animations/hulda/attack.skanim");
-}
-
-void Hulda::takeDamage(float amount) {
-    health -= amount;
-    std::cout << "Hulda took " << amount << " damage!" << std::endl;
-    if (health <= 0.0f) {
-        defeated = true;
-        std::cout << "Hulda is defeated!" << std::endl;
-    }
-}
-
-bool Hulda::isDefeated() const {
-    return defeated;
-}
