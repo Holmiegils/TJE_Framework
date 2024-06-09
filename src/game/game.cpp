@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include "hulda.h"
 
 // some globals
 Mesh* mesh = NULL;
@@ -32,7 +33,7 @@ Animator animator;
 
 Game* Game::instance = NULL;
 
-float camera_pitch;
+float camera_pitch = -0.5;
 float camera_yaw;
 
 float character_facing_rad = 0;
@@ -48,6 +49,8 @@ float sphere_collision_radius = 4.0f;
 bool right_punch = true;
 bool is_punching = false;
 float punch_duration = 0;
+
+Hulda* hulda = new Hulda();
 
 // Declaration of meshes_to_load
 std::unordered_map<std::string, std::vector<Matrix44>> meshes_to_load;
@@ -153,10 +156,10 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     camera->lookAt(Vector3(0.f, 1000.f, 1000.f), Vector3(0.f, 0.f, 0.f), Vector3(0.f, 1.f, 0.f)); // position the camera and point to 0,0,0
     camera->setPerspective(70.f, window_width / (float)window_height, 0.1f, 10000.f); // set the projection, we want to be perspective
 
-    animator.playAnimation("data/animations/idle.skanim");
+    animator.playAnimation("data/animations/character/idle.skanim");
 
     // Load one texture using the Texture Manager
-    texture = Texture::Get("data/textures/character/Guard_03__diffuse.png");
+    texture = Texture::Get("data/textures/character.png");
 
     root = new Entity();
     parseScene("data/myscene.scene", root);
@@ -166,7 +169,8 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
 
     mesh_matrix.setIdentity();
     mesh_matrix.scale(0.05f, 0.05f, 0.05f);
-    //mesh_matrix.rotate(M_PI, Vector3(0.0f, 1.0f, 0.0f));
+
+    hulda->initialize();
 
     // Example of shader loading using the shaders manager
     shader = Shader::Get("data/shaders/skinning.vs", "data/shaders/texture.fs");
@@ -223,6 +227,8 @@ void Game::render()
     //renderDebugCollisions();
     // 
 
+    hulda->render(camera);
+
     // Draw the floor grid
     drawGrid();
 
@@ -276,14 +282,13 @@ void Game::update(double seconds_elapsed) {
     unified = pitchmat * yawmat;
     Vector3 front = unified.frontVector();
 
-    camera->lookAt(mesh_matrix.getTranslation() - front * 25, mesh_matrix.getTranslation(), Vector3(0, 1, 0));
+    camera->lookAt(mesh_matrix.getTranslation() - front * 35, mesh_matrix.getTranslation(), Vector3(0, 1, 0));
 
     bool moving = false;
 
     Vector3 position = mesh_matrix.getTranslation();
 
-    if (Input::isKeyPressed(SDL_SCANCODE_W)) {
-
+    if (Input::isKeyPressed(SDL_SCANCODE_W) || Input::isKeyPressed(SDL_SCANCODE_UP)) {
         moving = true;
         character_facing_rad = camera_yaw;
         front.y = 0.0f; // DISCARD HEIGHT IN THE DIRECTION
@@ -327,10 +332,16 @@ void Game::update(double seconds_elapsed) {
         position.z += front.x * seconds_elapsed * speed;
     }
 
+    if (punch_duration > 0) {
+        punch_duration -= seconds_elapsed;
+        is_running = false;
+        moving = false;
+    }
+
     if (moving) {
         if (!is_running) {
             is_running = true;
-            animator.playAnimation("data/animations/running.skanim");
+            animator.playAnimation("data/animations/character/running.skanim");
         }
 
         Vector3 collision_point, collision_normal;
@@ -360,15 +371,13 @@ void Game::update(double seconds_elapsed) {
         }
     }
 
-    if (!moving && is_running || !moving && is_punching && punch_duration <= 0) {
+    if (!moving && is_running || is_punching && punch_duration <= 0) {
         is_running = false;
         is_punching = false;
-        animator.playAnimation("data/animations/idle.skanim");
+        animator.playAnimation("data/animations/character/idle.skanim");
     }
 
-    if (punch_duration > 0) {
-        punch_duration -= seconds_elapsed;
-    }
+    hulda->update(seconds_elapsed, position);
 }
 
 // Keyboard event handler (sync input)
@@ -399,8 +408,8 @@ void Game::onMouseButtonDown(SDL_MouseButtonEvent event)
 {
     if (punch_duration < 0.5f) {
         character_facing_rad = camera_yaw;
-        if (right_punch) animator.playAnimation("data/animations/right_punch.skanim");
-        else animator.playAnimation("data/animations/left_punch.skanim");
+        if (right_punch) animator.playAnimation("data/animations/character/right_punch.skanim");
+        else animator.playAnimation("data/animations/character/left_punch.skanim");
         right_punch = !right_punch;
         is_punching = true;
         punch_duration = 1;
