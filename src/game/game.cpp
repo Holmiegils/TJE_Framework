@@ -37,14 +37,6 @@ Texture* heal_button_1 = NULL;
 Texture* heal_button_2 = NULL;
 Texture* heal_button_3 = NULL;
 
-int flask_uses = 5; // Starting number of flask uses
-float current_health = 100.0f; // Starting health
-const float max_health = 100.0f; // Maximum health
-const float heal_amount = 15.0f; // Amount healed per use
-
-HSAMPLE hSample; // Handler to store one sample
-HCHANNEL hSampleChannel; // Handler to store one channel
-
 bool is_running = false;
 
 Matrix44 mesh_matrix;
@@ -180,16 +172,47 @@ void Game::renderQuad(Texture* texture, Vector2 position, Vector2 size, float sc
     shader->disable();
 }
 
+HSAMPLE hSample;
+HCHANNEL hSampleChannel; 
+HSAMPLE hPunchSample;
+HCHANNEL hPunchChannel;
+HSAMPLE hHealSample;
+HCHANNEL hHealChannel;
+HSAMPLE hWalkSample;
+HCHANNEL hWalkChannel;
+
 void Game::loadAudio() {
-    // Load sample from disk
-    hSample = BASS_SampleLoad(false, "data/audio/background_music.mp3", 0, 0, 3, 0);
-    if (hSample == 0) {
-        std::cerr << "Error loading audio sample" << std::endl;
+    // Load background music stream from disk
+    hSampleChannel = BASS_StreamCreateFile(false, "data/audio/background_music.mp3", 0, 0, 0);
+    if (hSampleChannel == 0) {
+        std::cerr << "Error loading audio stream: background_music.mp3" << std::endl;
         return;
     }
+    BASS_ChannelSetAttribute(hSampleChannel, BASS_ATTRIB_VOL, 0.8); // Set background music volume
 
-    // Store sample channel in handler
-    hSampleChannel = BASS_SampleGetChannel(hSample, false);
+    // Load punch stream from disk
+    hPunchChannel = BASS_StreamCreateFile(false, "data/audio/punch.wav", 0, 0, 0);
+    if (hPunchChannel == 0) {
+        std::cerr << "Error loading audio stream: punch.wav" << std::endl;
+        return;
+    }
+    BASS_ChannelSetAttribute(hPunchChannel, BASS_ATTRIB_VOL, 0.5); // Set punch sound volume
+
+    // Load heal stream from disk
+    hHealChannel = BASS_StreamCreateFile(false, "data/audio/heal.wav", 0, 0, 0);
+    if (hHealChannel == 0) {
+        std::cerr << "Error loading audio stream: heal.wav" << std::endl;
+        return;
+    }
+    BASS_ChannelSetAttribute(hHealChannel, BASS_ATTRIB_VOL, 1.8); // Set heal sound volume
+
+    // Load walk stream from disk
+    hWalkChannel = BASS_StreamCreateFile(false, "data/audio/walk.wav", 0, 0, BASS_SAMPLE_LOOP);
+    if (hWalkChannel == 0) {
+        std::cerr << "Error loading audio stream: walk.wav" << std::endl;
+        return;
+    }
+    BASS_ChannelSetAttribute(hWalkChannel, BASS_ATTRIB_VOL, 0.2); // Set walk sound volume
 }
 
 void Game::playAudio() {
@@ -402,6 +425,9 @@ void Game::renderMainMenu() {
     SDL_GL_SwapWindow(this->window);
 }
 
+bool is_walking_sound_playing = false;
+float walk_speed = 0.5f;
+
 void Game::update(double seconds_elapsed) {
     if (!game_started) {
         mainMenu->update(seconds_elapsed);
@@ -420,7 +446,6 @@ void Game::update(double seconds_elapsed) {
         camera_pitch += Input::mouse_delta.y * seconds_elapsed;
     }
 
-    // ALEX: I HAVE FLIPPED THE DIRECTION SO IT IS MORE INTUITIVE, BUT FEEL FREE TO CHANGE IT AGAIN IF YOU LIKE THE OTHER WAY!
     camera_yaw -= Input::mouse_delta.x * seconds_elapsed;
 
     Matrix44 pitchmat;
@@ -501,8 +526,6 @@ void Game::update(double seconds_elapsed) {
         for (Entity* child : root->children) {
             EntityCollider* collider = dynamic_cast<EntityCollider*>(child);
             if (collider && (collider->layer & SCENARIO)) {
-                // ALEX: CHECK FOR COLLISIONS USING A SPHERE IN NEW CHARACTER POSITION + HEIGHT OFFSET
-                // (BASICALLY, CHECK I CAN GO TO THAT POSITION)
                 if (collider->testSphereCollision(collider->model, position + Vector3(0.f, character_height, 0.0f), sphere_collision_radius, collision_point, collision_normal)) {
                     collision_detected = true;
                     break;
@@ -511,10 +534,17 @@ void Game::update(double seconds_elapsed) {
         }
 
         if (!collision_detected) {
-            //  IF  NOT COLLIDED, APPLY NEW POSITION
             mesh_matrix.setTranslation(position);
             mesh_matrix.rotate(character_facing_rad, Vector3(0, 1, 0));
             mesh_matrix.scale(0.05f, 0.05f, 0.05f);
+        }
+
+        // Start walk sound if not already playing
+        if (!is_walking_sound_playing) {
+            //hWalkChannel = BASS_SampleGetChannel(hWalkSample, false);
+            BASS_ChannelPlay(hWalkChannel, true);
+            BASS_ChannelSetAttribute(hWalkChannel, BASS_ATTRIB_FREQ, 44100 * walk_speed);
+            is_walking_sound_playing = true;
         }
     }
 
@@ -522,10 +552,36 @@ void Game::update(double seconds_elapsed) {
         is_running = false;
         is_punching = false;
         animator.playAnimation("data/animations/character/idle.skanim");
+
+        // Stop walk sound when movement stops
+        BASS_ChannelStop(hWalkChannel);
+        is_walking_sound_playing = false;
     }
 
     hulda->update(seconds_elapsed, position);
 }
+
+void Game::onKeyUp(SDL_KeyboardEvent event)
+{
+    if (!game_started) {
+        mainMenu->handleInput(event);
+        return;
+    }
+
+    switch (event.keysym.sym) {
+    case SDL_SCANCODE_W:
+    case SDL_SCANCODE_S:
+    case SDL_SCANCODE_A:
+    case SDL_SCANCODE_D:
+        // Stop walk sound when movement key is released
+        BASS_ChannelStop(hWalkChannel);
+        is_walking_sound_playing = false;
+        break;
+    }
+}
+
+
+
 
 // Keyboard event handler (sync input)
 void Game::onKeyDown(SDL_KeyboardEvent event) {
@@ -546,6 +602,7 @@ void Game::onKeyDown(SDL_KeyboardEvent event) {
             if (current_health < max_health) {
                 current_health = std::min(max_health, current_health + heal_amount);
                 flask_uses--;
+                BASS_ChannelPlay(hHealChannel, true);
             }
         }
         break;
@@ -553,10 +610,6 @@ void Game::onKeyDown(SDL_KeyboardEvent event) {
 }
 
 
-void Game::onKeyUp(SDL_KeyboardEvent event)
-{
-    // Implementation here
-}
 
 void Game::onMouseButtonDown(SDL_MouseButtonEvent event)
 {
@@ -567,6 +620,9 @@ void Game::onMouseButtonDown(SDL_MouseButtonEvent event)
         right_punch = !right_punch;
         is_punching = true;
         punch_duration = 1;
+
+        BASS_ChannelPlay(hPunchChannel, true);
+        BASS_ChannelStop(hWalkChannel);
     }
 }
 
