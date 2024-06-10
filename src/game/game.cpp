@@ -441,6 +441,11 @@ void Game::update(double seconds_elapsed) {
     animator.update(seconds_elapsed);
 
     float speed = 25.0f;
+    float sprint_speed = 50.0f; // Sprinting speed
+
+    if (Input::isKeyPressed(SDL_SCANCODE_LSHIFT)) {
+        speed = sprint_speed;
+    }
 
     if (camera_pitch + Input::mouse_delta.y * seconds_elapsed < -0.01 && camera_pitch + Input::mouse_delta.y * seconds_elapsed > -1) {
         camera_pitch += Input::mouse_delta.y * seconds_elapsed;
