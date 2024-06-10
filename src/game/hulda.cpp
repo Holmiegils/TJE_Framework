@@ -41,35 +41,45 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
     float distance_to_character = (character_pos - position).length();
 
     bool moving = false;
+    Vector3 direction = character_pos - position;
+    direction.normalize();
 
-    if (distance_to_character < chase_threshold && distance_to_character > 12 && punch_duration <= 0) {
+    float target_angle = -atan2(direction.x, direction.z);
+
+    if (distance_to_character < chase_threshold && distance_to_character > 12) {
         moving = true;
 
-        Vector3 direction = character_pos - position;
-        direction.normalize();
+        if (punch_duration <= 0) {
+            character_facing_rad = target_angle;
 
-        float target_angle = -atan2(direction.x, direction.z);
-        character_facing_rad = target_angle;
-
-        float speed = 10.0f;
-        position += direction * speed * seconds_elapsed;
+            float speed = 10.0f;
+            position += direction * speed * seconds_elapsed;
+        }
     }
 
     if (punch_duration > 0) {
         punch_duration -= seconds_elapsed;
-        is_running = false;
-        moving = false;
     }
 
-    if (!is_running && moving) {
+    //std::cout << is_running << ", " << moving << std::endl;
+    if (!is_running && moving && punch_duration <= 0) {
         is_running = true;
         animator.playAnimation("data/animations/hulda/running.skanim");
+    }                                    
+
+    if (distance_to_character < 5 && punch_duration <= 0) {
+        animator.playAnimation("data/animations/hulda/punch.skanim");
     }
 
-    if (!moving && is_running) {
-        is_running = false;
-        animator.playAnimation("data/animations/hulda/attack.skanim");
-        punch_duration = 2.6f;
+    if (!moving) {
+        if (is_running) {
+            is_running = false;
+            animator.playAnimation("data/animations/hulda/attack.skanim");
+        }
+        if (punch_duration <= 0 && distance_to_character < chase_threshold) {
+            punch_duration = 2.6f;
+            character_facing_rad = target_angle;
+        }
     }
 
     mesh_matrix.setTranslation(position);

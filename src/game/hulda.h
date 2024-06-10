@@ -19,6 +19,7 @@ public:
     void initialize();
     void render(Camera* camera);
     void update(double seconds_elapsed, Vector3 character_pos);
+
     float getHealth() const { return health; }
 
 private:
