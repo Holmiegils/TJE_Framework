@@ -237,7 +237,7 @@ void Game::loadAudio() {
         std::cerr << "Error loading audio stream: char_death.wav" << std::endl;
         return;
     }
-    BASS_ChannelSetAttribute(hDeathChannel, BASS_ATTRIB_VOL, 1.8);
+    BASS_ChannelSetAttribute(hDeathChannel, BASS_ATTRIB_VOL, 1.0);
 }
 
 void Game::playAudio() {
@@ -247,7 +247,8 @@ void Game::playAudio() {
 
 Game::Game(int window_width, int window_height, SDL_Window* window)
     : window(window), window_width(window_width), window_height(window_height),
-    frame(0), time(0.0f), elapsed_time(0.0f), fps(0), must_exit(false), mouse_locked(false), game_started(false)
+    frame(0), time(0.0f), elapsed_time(0.0f), fps(0), must_exit(false),
+    mouse_locked(false), game_started(false), death_sound_played(false)
 {
     this->window_width = window_width;
     this->window_height = window_height;
@@ -392,7 +393,9 @@ void Game::render() {
 
 // Main menu rendering should only clear and swap buffers once per frame
 void Game::renderMainMenu() {
+    death_sound_played = false;
     mainMenu->render();
+
 }
 
 // Add functions to render the death and victory overlays
@@ -528,7 +531,7 @@ void Game::update(double seconds_elapsed) {
     case STATE_PLAYING: {
         if (current_health <= 0) {
             currentState = STATE_DEATH;
-            
+            death_sound_played = false;
             break;
         }
 
@@ -673,7 +676,11 @@ void Game::update(double seconds_elapsed) {
     }
 
     case STATE_DEATH: {
-        
+        if (!death_sound_played) {
+            BASS_ChannelStop(hSampleChannel);
+            BASS_ChannelPlay(hDeathChannel, true);
+            death_sound_played = true; 
+        }
         break;
     }
 

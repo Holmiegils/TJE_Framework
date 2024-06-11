@@ -39,6 +39,7 @@ public:
     float elapsed_time;
     int fps;
     bool must_exit;
+    bool death_sound_played;
 
     // some vars
     Camera* camera;
