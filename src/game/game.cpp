@@ -36,6 +36,10 @@ Texture* heal_button_0 = NULL;
 Texture* heal_button_1 = NULL;
 Texture* heal_button_2 = NULL;
 Texture* heal_button_3 = NULL;
+Texture* attack_tut = NULL;
+Texture* heal_tut = NULL;
+Texture* movement_tut = NULL;
+
 
 bool is_running = false;
 
@@ -60,6 +64,9 @@ float sphere_collision_radius = 4.0f;
 bool right_punch = true;
 bool is_punching = false;
 float punch_duration = 0;
+
+float tutorial_time = 0.0f;
+
 
 Hulda* hulda = new Hulda();
 
@@ -254,6 +261,11 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     heal_button_2 = Texture::Get("data/textures/heal_button_2.png");
     heal_button_3 = Texture::Get("data/textures/heal_button_3.png");
 
+    attack_tut = Texture::Get("data/textures/attack_tut.png");
+    heal_tut = Texture::Get("data/textures/heal_tut.png");
+    movement_tut = Texture::Get("data/textures/movement_tut.png");
+
+
 
     // OpenGL flags
     glEnable(GL_CULL_FACE); // render both sides of every triangle
@@ -285,11 +297,6 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
 
     // Initialize the main menu
     mainMenu = new MainMenu();
-
-    // Hide the cursor
-    mouse_locked = !mouse_locked;
-    SDL_ShowCursor(!mouse_locked);
-    SDL_SetRelativeMouseMode((SDL_bool)(mouse_locked));
 }
 
 // what to do when the image has to be drawn
@@ -409,6 +416,34 @@ void Game::renderHUD() {
     Texture* hulda_image = Texture::Get("data/textures/hulda_name.png");
     renderQuad(hulda_image, hulda_image_position, hulda_image_size, 1.0f);
 
+    if (tutorial_time <= 10.0f) {
+        // Define positions and sizes for tutorial images
+        Vector2 movement_tut_size = Vector2(0.9f, 0.7f); // Adjusted size for better visibility
+        Vector2 heal_tut_size = Vector2(0.3f, 0.3f); // Adjusted size for better visibility
+        Vector2 attack_tut_size = Vector2(0.3f, 0.3f); // Adjusted size for better visibility
+
+        Vector2 attack_tut_position = Vector2(-0.4f, -0.3f);
+        Vector2 heal_tut_position = Vector2(0.4f, -0.3f);
+        Vector2 movement_tut_position = Vector2(0.0f, 0.3f);
+
+        // Render tutorial images
+        renderQuad(attack_tut, attack_tut_position, attack_tut_size, 1.0f);
+        renderQuad(heal_tut, heal_tut_position, heal_tut_size, 1.0f);
+        renderQuad(movement_tut, movement_tut_position, movement_tut_size, 1.0f);
+
+        // Define positions for the text below the images
+        Vector2 attack_text_position = Vector2(attack_tut_position.x + 0.12f, attack_tut_position.y + 0.55f);
+        Vector2 heal_text_position = Vector2(heal_tut_position.x - 0.27f, heal_tut_position.y + 0.55f);
+        Vector2 movement_text_position = Vector2(movement_tut_position.x, movement_tut_position.y - 0.27f);
+        Vector2 shift_text_position = Vector2(attack_tut_position.x + 0.12f, movement_tut_position.y - 0.27f);
+
+        // Render text below tutorial images
+        drawText((attack_text_position.x + 0.5f) * window_width, (attack_text_position.y + 0.5f) * window_height, "Attack with Click", Vector3(1, 1, 1), 2);
+        drawText((heal_text_position.x + 0.5f) * window_width, (heal_text_position.y + 0.5f) * window_height, "Heal with E", Vector3(1, 1, 1), 2);
+        drawText((movement_text_position.x + 0.5f) * window_width, (movement_text_position.y + 0.5f) * window_height, "Move with WASD", Vector3(1, 1, 1), 2);
+        drawText((shift_text_position.x + 0.5f) * window_width, (shift_text_position.y + 0.5f) * window_height, "Shift to sprint", Vector3(1, 1, 1), 2);
+    }
+
     glDisable(GL_BLEND);
 }
 
@@ -438,6 +473,14 @@ void Game::update(double seconds_elapsed) {
         return;
     }
 
+    // Hide the cursor when the game starts
+    if (game_started && !mouse_locked) {
+        mouse_locked = true;
+        SDL_ShowCursor(SDL_DISABLE);
+        SDL_SetRelativeMouseMode(SDL_TRUE);
+    }
+
+    tutorial_time += seconds_elapsed;
     animator.update(seconds_elapsed);
 
     float speed = 25.0f;
