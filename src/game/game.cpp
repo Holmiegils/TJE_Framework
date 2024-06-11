@@ -17,13 +17,11 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include "character.h"
 #include "hulda.h"
 
-// some globals
-Mesh* mesh = NULL;
-Texture* texture = NULL;
 Shader* shader = NULL;
-// Animation* anim = NULL;
+
 float angle = 0;
 float mouse_speed = 100.0f;
 
@@ -40,35 +38,16 @@ Texture* attack_tut = NULL;
 Texture* heal_tut = NULL;
 Texture* movement_tut = NULL;
 
-
-bool is_running = false;
-
-Matrix44 mesh_matrix;
-Animator animator;
-
 Game* Game::instance = NULL;
 
 float camera_pitch = -0.5;
 float camera_yaw;
 
-float character_facing_rad = 0;
-
-// ALEX: WE DON'T NEED IT
-// Vector3 character_pos;
-
-// ALEX: USE THIS TO INCREASE THE POSITION IN Y AND AVOID DOING STUFF ON THE CHARACTER FEET.
-float character_height = 5.0f;
-// ALEX: SIZE OF THE SPHERE OF THE COLLISION TEST (TWEAK THIS VALUE AS YOU LIKE!)
 float sphere_collision_radius = 4.0f;
-
-bool right_punch = true;
-bool is_punching = false;
-float punch_duration = 0;
-float imunity;
 
 float tutorial_time = 0.0f;
 
-
+Character* character = new Character();
 Hulda* hulda = new Hulda();
 
 // Declaration of meshes_to_load
@@ -277,24 +256,13 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     camera->lookAt(Vector3(0.f, 1000.f, 1000.f), Vector3(0.f, 0.f, 0.f), Vector3(0.f, 1.f, 0.f)); // position the camera and point to 0,0,0
     camera->setPerspective(70.f, window_width / (float)window_height, 0.1f, 10000.f); // set the projection, we want to be perspective
 
-    animator.playAnimation("data/animations/character/idle.skanim");
-
-    // Load one texture using the Texture Manager
-    texture = Texture::Get("data/textures/character.png");
-
     root = new Entity();
     parseScene("data/myscene.scene", root);
 
-    // Example of loading Mesh from Mesh Manager
-    mesh = Mesh::Get("data/meshes/character.MESH");
-
-    mesh_matrix.setIdentity();
-    mesh_matrix.scale(0.05f, 0.05f, 0.05f);
-
-    hulda->initialize();
-
-    // Example of shader loading using the shaders manager
     shader = Shader::Get("data/shaders/skinning.vs", "data/shaders/texture.fs");
+
+    character->initialize();
+    hulda->initialize();
 
     // Initialize the main menu
     mainMenu = new MainMenu();
@@ -322,19 +290,8 @@ void Game::render()
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
 
-    shader->enable();
-
-    shader->setUniform("u_color", Vector4(1, 1, 1, 1));
-    shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
-    shader->setUniform("u_texture", texture, 0);
-    shader->setUniform("u_model", mesh_matrix);
-    shader->setUniform("u_time", time);
-
-    mesh->renderAnimated(GL_TRIANGLES, &animator.getCurrentSkeleton());
-
-    // Disable shader
-    shader->disable();
-
+    character->render(camera);
+    
     shader->enable();
     root->render(camera);
     shader->disable();
@@ -482,14 +439,6 @@ void Game::update(double seconds_elapsed) {
     }
 
     tutorial_time += seconds_elapsed;
-    animator.update(seconds_elapsed);
-
-    float speed = 25.0f;
-    float sprint_speed = 50.0f; // Sprinting speed
-
-    if (Input::isKeyPressed(SDL_SCANCODE_LSHIFT)) {
-        speed = sprint_speed;
-    }
 
     if (camera_pitch + Input::mouse_delta.y * seconds_elapsed < -0.01 && camera_pitch + Input::mouse_delta.y * seconds_elapsed > -1) {
         camera_pitch += Input::mouse_delta.y * seconds_elapsed;
@@ -507,118 +456,36 @@ void Game::update(double seconds_elapsed) {
     unified = pitchmat * yawmat;
     Vector3 front = unified.frontVector();
 
-    Vector3 viewpoint = mesh_matrix.getTranslation();
+    Vector3 viewpoint = character->getPosition();
     viewpoint.y += 10;
 
-    camera->lookAt(mesh_matrix.getTranslation() - front * 35, viewpoint, Vector3(0, 1, 0));
+    camera->lookAt(character->getPosition() - front * 35, viewpoint, Vector3(0, 1, 0));
 
-    bool moving = false;
-    front.y = 0.0f; // DISCARD HEIGHT IN THE DIRECTION
+    character->update(seconds_elapsed, front, camera_yaw);
 
-    Vector3 position = mesh_matrix.getTranslation();
-
-    if (Input::isKeyPressed(SDL_SCANCODE_W)) {
-        moving = true;
-        character_facing_rad = camera_yaw;
-        position += front * seconds_elapsed * speed;
-    }
-
-    if (Input::isKeyPressed(SDL_SCANCODE_S)) {
-        moving = true;
-        character_facing_rad = camera_yaw - PI;
-        position -= front * seconds_elapsed * speed;
-    }
-
-    if (Input::isKeyPressed(SDL_SCANCODE_A)) {
-        moving = true;
-
-        if (Input::isKeyPressed(SDL_SCANCODE_W)) {
-            character_facing_rad = camera_yaw - PI / 4;
-        }
-        else if (Input::isKeyPressed(SDL_SCANCODE_S)) {
-            character_facing_rad = camera_yaw - 3 * PI / 4;
-        }
-        else character_facing_rad = camera_yaw - PI / 2;
-
-        position.x += front.z * seconds_elapsed * speed;
-        position.z -= front.x * seconds_elapsed * speed;
-    }
-
-    if (Input::isKeyPressed(SDL_SCANCODE_D)) {
-        moving = true;
-
-        if (Input::isKeyPressed(SDL_SCANCODE_W)) {
-            character_facing_rad = camera_yaw + PI / 4;
-        }
-        else if (Input::isKeyPressed(SDL_SCANCODE_S)) {
-            character_facing_rad = camera_yaw + 3 * PI / 4;
-        }
-        else character_facing_rad = camera_yaw + PI / 2;
-
-        position.x -= front.z * seconds_elapsed * speed;
-        position.z += front.x * seconds_elapsed * speed;
-    }
-
-    if (punch_duration > 0) {
-        punch_duration -= seconds_elapsed;
-        is_running = false;
-        moving = false;
-    }
-
-    if (moving) {
-        if (!is_running) {
-            is_running = true;
-            animator.playAnimation("data/animations/character/running.skanim");
-        }
-
-        Vector3 collision_point, collision_normal;
-        bool collision_detected = false;
-
-        for (Entity* child : root->children) {
-            EntityCollider* collider = dynamic_cast<EntityCollider*>(child);
-            if (collider && (collider->layer & SCENARIO)) {
-                if (collider->testSphereCollision(collider->model, position + Vector3(0.f, character_height, 0.0f), sphere_collision_radius, collision_point, collision_normal)) {
-                    collision_detected = true;
-                    break;
-                }
-            }
-        }
-
-        if (!collision_detected) {
-            mesh_matrix.setTranslation(position);
-            mesh_matrix.rotate(character_facing_rad, Vector3(0, 1, 0));
-            mesh_matrix.scale(0.05f, 0.05f, 0.05f);
-        }
-
-        // Start walk sound if not already playing
+    if (character->isRunning()) {
         if (!is_walking_sound_playing) {
-            //hWalkChannel = BASS_SampleGetChannel(hWalkSample, false);
             BASS_ChannelPlay(hWalkChannel, true);
-            BASS_ChannelSetAttribute(hWalkChannel, BASS_ATTRIB_FREQ, 44100 * walk_speed);
+            BASS_ChannelSetAttribute(hWalkChannel, BASS_ATTRIB_FREQ, 44100 * 0.5f); // Assume walk_speed is 0.5f
             is_walking_sound_playing = true;
         }
     }
-
-    if (!moving && is_running || is_punching && punch_duration <= 0) {
-        is_running = false;
-        is_punching = false;
-        animator.playAnimation("data/animations/character/idle.skanim");
-
+    else {
         // Stop walk sound when movement stops
         BASS_ChannelStop(hWalkChannel);
         is_walking_sound_playing = false;
     }
 
-    hulda->update(seconds_elapsed, position);
-    if (hulda->heavyHit() && imunity <= 0) {
-        current_health -= 5;
-        imunity = 0.2;
+    if (character->isPunching()) {
+        BASS_ChannelPlay(hPunchChannel, true);
+        BASS_ChannelStop(hWalkChannel);
     }
 
-    if (imunity > 0) {
-        imunity -= seconds_elapsed;
+    hulda->update(seconds_elapsed, character->getPosition());
+    if (hulda->heavyHit() && !character->isImmune()) {
+        current_health -= 5;
+        character->setImmunity();
     }
-    std::cout << current_health << std::endl;
 }
 
 void Game::onKeyUp(SDL_KeyboardEvent event)
@@ -673,17 +540,7 @@ void Game::onKeyDown(SDL_KeyboardEvent event) {
 
 void Game::onMouseButtonDown(SDL_MouseButtonEvent event)
 {
-    if (punch_duration < 0.5f) {
-        character_facing_rad = camera_yaw;
-        if (right_punch) animator.playAnimation("data/animations/character/right_punch.skanim");
-        else animator.playAnimation("data/animations/character/left_punch.skanim");
-        right_punch = !right_punch;
-        is_punching = true;
-        punch_duration = 1;
 
-        BASS_ChannelPlay(hPunchChannel, true);
-        BASS_ChannelStop(hWalkChannel);
-    }
 }
 
 void Game::onMouseButtonUp(SDL_MouseButtonEvent event)
@@ -716,25 +573,25 @@ void Game::onResize(int width, int height)
 }
 
 // ALEX: RENDER COLLISION SPHERES AS DEBUG TO CHECK IF WE ARE DOING STUFF CORRECTLY!
-void Game::renderDebugCollisions()
-{
-    Shader* shader = Shader::Get("data/shaders/basic.vs", "data/shaders/flat.fs");
-    Mesh* mesh = Mesh::Get("data/meshes/sphere.obj");
-
-    shader->enable();
-
-    {
-        Matrix44 m;
-        m.setTranslation(mesh_matrix.getTranslation());
-        m.translate(0.0f, character_height, 0.0f);
-        m.scale(sphere_collision_radius, sphere_collision_radius, sphere_collision_radius);
-
-        shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
-        shader->setUniform("u_color", Vector4(0.0f, 1.0f, 0.0f, 1.0f));
-        shader->setUniform("u_model", m);
-
-        mesh->render(GL_LINES);
-    }
-
-    shader->disable();
-}
+//void Game::renderDebugCollisions()
+//{
+//    Shader* shader = Shader::Get("data/shaders/basic.vs", "data/shaders/flat.fs");
+//    Mesh* mesh = Mesh::Get("data/meshes/sphere.obj");
+//
+//    shader->enable();
+//
+//    {
+//        Matrix44 m;
+//        m.setTranslation(mesh_matrix.getTranslation());
+//        m.translate(0.0f, character_height, 0.0f);
+//        m.scale(sphere_collision_radius, sphere_collision_radius, sphere_collision_radius);
+//
+//        shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
+//        shader->setUniform("u_color", Vector4(0.0f, 1.0f, 0.0f, 1.0f));
+//        shader->setUniform("u_model", m);
+//
+//        mesh->render(GL_LINES);
+//    }
+//
+//    shader->disable();
+//}
