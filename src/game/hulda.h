@@ -21,6 +21,7 @@ public:
     void update(double seconds_elapsed, Vector3 character_pos);
 
     float getHealth() const { return health; }
+    bool heavyHit() const;
 
 private:
     Mesh* mesh;
@@ -34,7 +35,9 @@ private:
     float health;
     float chase_threshold;
 
-    float punch_duration;
+    float attack_duration;
+    bool is_punching;
+    bool hit_character;
 };
 
 #endif // HULDA_H
