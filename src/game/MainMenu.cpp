@@ -6,6 +6,7 @@
 #include "framework/input.h"
 #include <iostream>
 #include <chrono>
+#include "game.h"
 
 MainMenu::MainMenu() : backgroundTexture(nullptr), shader(nullptr), active(true), selectedOption(0) {
     backgroundTexture = Texture::Get("data/textures/back.png");
@@ -79,7 +80,8 @@ void MainMenu::update(double seconds_elapsed) {
         case START:
             std::cout << "Start Game" << std::endl;
             active = false;
-            // Start game logic
+            Game::instance->setState(STATE_PLAYING); // Change game state to playing
+            Game::instance->playAudio(); // Play background music
             break;
         case EXIT:
             std::cout << "Exit Game" << std::endl;
@@ -92,3 +94,6 @@ void MainMenu::update(double seconds_elapsed) {
 void MainMenu::handleInput(SDL_KeyboardEvent event) {
     // Handle input in the update method instead
 }
+
+// Fix for the blinking issue: modify the Game::render method to ensure it renders the main menu correctly
+

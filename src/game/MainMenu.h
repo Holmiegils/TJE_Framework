@@ -4,6 +4,7 @@
 #include "framework/input.h"
 #include "graphics/texture.h"
 #include "graphics/shader.h"
+#include "utils.h" // For drawText function
 #include <vector>
 #include <string>
 #include <chrono>

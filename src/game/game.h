@@ -16,6 +16,13 @@
 
 #include <SDL2/SDL.h>
 
+enum GameState {
+    STATE_MAIN_MENU,
+    STATE_PLAYING,
+    STATE_DEATH,
+    STATE_VICTORY
+};
+
 class Game
 {
 public:
@@ -47,10 +54,13 @@ public:
 
     Game(int window_width, int window_height, SDL_Window* window);
 
+    void renderGameScene();
+
     // main functions
     void render();
     void renderMainMenu();
     void renderDebugCollisions();
+
     
     void update(double dt);
 
@@ -66,11 +76,18 @@ public:
 
     void renderQuad(Texture* texture, Vector2 position, Vector2 size, float scale);
     void loadAudio();
+    void renderDeathOverlay();
+    void renderVictoryOverlay();
     void renderHUD();
+
+    void setState(GameState newState) {
+        currentState = newState;
+    }
 
 private:
     bool mouse_locked;
     bool game_started;
+    GameState currentState;
 };
 
 #endif // GAME_H

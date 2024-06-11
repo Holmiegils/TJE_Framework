@@ -39,6 +39,8 @@ Texture* heal_button_3 = NULL;
 Texture* attack_tut = NULL;
 Texture* heal_tut = NULL;
 Texture* movement_tut = NULL;
+Texture* death_screen_texture = NULL;
+Texture* victory_screen_texture = NULL;
 
 
 bool is_running = false;
@@ -72,6 +74,11 @@ Hulda* hulda = new Hulda();
 
 // Declaration of meshes_to_load
 std::unordered_map<std::string, std::vector<Matrix44>> meshes_to_load;
+
+
+GameState currentState = STATE_MAIN_MENU;
+
+
 
 bool parseScene(const char* filename, Entity* root) {
     std::cout << " + Scene loading: " << filename << "..." << std::endl;
@@ -179,14 +186,17 @@ void Game::renderQuad(Texture* texture, Vector2 position, Vector2 size, float sc
     shader->disable();
 }
 
-HSAMPLE hSample;
+
 HCHANNEL hSampleChannel; 
-HSAMPLE hPunchSample;
+
 HCHANNEL hPunchChannel;
-HSAMPLE hHealSample;
+
 HCHANNEL hHealChannel;
-HSAMPLE hWalkSample;
+
 HCHANNEL hWalkChannel;
+
+HCHANNEL hDeathChannel;
+
 
 void Game::loadAudio() {
     // Load background music stream from disk
@@ -220,6 +230,14 @@ void Game::loadAudio() {
         return;
     }
     BASS_ChannelSetAttribute(hWalkChannel, BASS_ATTRIB_VOL, 0.2); // Set walk sound volume
+
+
+    hDeathChannel = BASS_StreamCreateFile(false, "data/audio/char_death.wav", 0, 0, 0);
+    if (hDeathChannel == 0) {
+        std::cerr << "Error loading audio stream: char_death.wav" << std::endl;
+        return;
+    }
+    BASS_ChannelSetAttribute(hDeathChannel, BASS_ATTRIB_VOL, 1.8);
 }
 
 void Game::playAudio() {
@@ -265,7 +283,8 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     heal_tut = Texture::Get("data/textures/heal_tut.png");
     movement_tut = Texture::Get("data/textures/movement_tut.png");
 
-
+    death_screen_texture = Texture::Get("data/textures/you_died.png");
+    victory_screen_texture = Texture::Get("data/textures/slain.png");
 
     // OpenGL flags
     glEnable(GL_CULL_FACE); // render both sides of every triangle
@@ -297,22 +316,15 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
 
     // Initialize the main menu
     mainMenu = new MainMenu();
+    mainMenu->setActive(true); // Set the main menu as active
+
+    // Set the initial game state to main menu
+    currentState = STATE_MAIN_MENU;
 }
 
 // what to do when the image has to be drawn
-void Game::render()
-{
-    if (!game_started) {
-        renderMainMenu();
-        return;
-    }
-
-    // Set the clear color (the background color)
-    glClearColor(0.0, 0.0, 0.0, 1.0);
-
-    // Clear the window and the depth buffer
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+// Include this function to render the game scene
+void Game::renderGameScene() {
     // Set the camera as default
     camera->enable();
 
@@ -341,14 +353,65 @@ void Game::render()
     // Render Hulda before the HUD
     hulda->render(camera);
 
-    // Render the HUD
-    renderHUD();
-
     // Render the FPS, Draw Calls, etc.
     drawText(2, 2, getGPUStats(), Vector3(1, 1, 1), 2);
+}
+
+// Main render function
+void Game::render() {
+    // Set the clear color (the background color)
+    glClearColor(0.0, 0.0, 0.0, 1.0);
+
+    // Clear the window and the depth buffer
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Render based on the current state
+    switch (currentState) {
+    case STATE_MAIN_MENU:
+        renderMainMenu();
+        break;
+    case STATE_PLAYING:
+        renderGameScene();
+        renderHUD();
+        break;
+    case STATE_DEATH:
+        renderGameScene(); // Render the scene behind the overlay
+        renderDeathOverlay();
+        break;
+    case STATE_VICTORY:
+        renderGameScene(); // Render the scene behind the overlay
+        renderVictoryOverlay();
+        break;
+    default:
+        break;
+    }
 
     // Swap between front buffer and back buffer
     SDL_GL_SwapWindow(this->window);
+}
+
+// Main menu rendering should only clear and swap buffers once per frame
+void Game::renderMainMenu() {
+    mainMenu->render();
+}
+
+// Add functions to render the death and victory overlays
+void Game::renderDeathOverlay() {
+    // Define position and size for the death overlay
+    Vector2 screen_position = Vector2(0.0f, 0.0f); // Centered
+    Vector2 screen_size = Vector2(0.8f, 0.4f); // Overlay size in NDC (-1 to 1)
+
+    // Render the death overlay
+    renderQuad(death_screen_texture, screen_position, screen_size, 1.0f);
+}
+
+void Game::renderVictoryOverlay() {
+    // Define position and size for the victory overlay
+    Vector2 screen_position = Vector2(0.0f, 0.0f); // Centered
+    Vector2 screen_size = Vector2(1.5f, 0.4f); // Overlay size in NDC (-1 to 1)
+
+    // Render the victory overlay
+    renderQuad(victory_screen_texture, screen_position, screen_size, 1.0f);
 }
 
 void Game::renderHUD() {
@@ -447,166 +510,182 @@ void Game::renderHUD() {
     glDisable(GL_BLEND);
 }
 
-void Game::renderMainMenu() {
-    // Set the clear color (the background color)
-    glClearColor(0.0, 0.0, 0.0, 1.0);
-
-    // Clear the window and the depth buffer
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    mainMenu->render();
-
-    // Swap between front buffer and back buffer
-    SDL_GL_SwapWindow(this->window);
-}
-
 bool is_walking_sound_playing = false;
 float walk_speed = 0.5f;
 
 void Game::update(double seconds_elapsed) {
-    if (!game_started) {
+    switch (currentState) {
+    case STATE_MAIN_MENU: {
         mainMenu->update(seconds_elapsed);
         if (!mainMenu->isActive()) {
+            currentState = STATE_PLAYING;
             game_started = true;
-            playAudio(); // Play background music when game starts
+            playAudio(); // Play background music when the game starts
         }
-        return;
+        break;
     }
 
-    // Hide the cursor when the game starts
-    if (game_started && !mouse_locked) {
-        mouse_locked = true;
-        SDL_ShowCursor(SDL_DISABLE);
-        SDL_SetRelativeMouseMode(SDL_TRUE);
-    }
+    case STATE_PLAYING: {
+        if (current_health <= 0) {
+            currentState = STATE_DEATH;
+            
+            break;
+        }
 
-    tutorial_time += seconds_elapsed;
-    animator.update(seconds_elapsed);
+        // Hide the cursor when the game starts
+        if (game_started && !mouse_locked) {
+            mouse_locked = true;
+            SDL_ShowCursor(SDL_DISABLE);
+            SDL_SetRelativeMouseMode(SDL_TRUE);
+        }
 
-    float speed = 25.0f;
-    float sprint_speed = 50.0f; // Sprinting speed
+        tutorial_time += seconds_elapsed;
+        animator.update(seconds_elapsed);
 
-    if (Input::isKeyPressed(SDL_SCANCODE_LSHIFT)) {
-        speed = sprint_speed;
-    }
+        float speed = 25.0f;
+        float sprint_speed = 50.0f; // Sprinting speed
 
-    if (camera_pitch + Input::mouse_delta.y * seconds_elapsed < -0.01 && camera_pitch + Input::mouse_delta.y * seconds_elapsed > -1) {
-        camera_pitch += Input::mouse_delta.y * seconds_elapsed;
-    }
+        if (Input::isKeyPressed(SDL_SCANCODE_LSHIFT)) {
+            speed = sprint_speed;
+        }
 
-    camera_yaw -= Input::mouse_delta.x * seconds_elapsed;
+        if (camera_pitch + Input::mouse_delta.y * seconds_elapsed < -0.01 && camera_pitch + Input::mouse_delta.y * seconds_elapsed > -1) {
+            camera_pitch += Input::mouse_delta.y * seconds_elapsed;
+        }
 
-    Matrix44 pitchmat;
-    pitchmat.setRotation(camera_pitch, Vector3(1, 0, 0));
+        camera_yaw -= Input::mouse_delta.x * seconds_elapsed;
 
-    Matrix44 yawmat;
-    yawmat.setRotation(camera_yaw, Vector3(0, 1, 0));
+        Matrix44 pitchmat;
+        pitchmat.setRotation(camera_pitch, Vector3(1, 0, 0));
 
-    Matrix44 unified;
-    unified = pitchmat * yawmat;
-    Vector3 front = unified.frontVector();
+        Matrix44 yawmat;
+        yawmat.setRotation(camera_yaw, Vector3(0, 1, 0));
 
-    camera->lookAt(mesh_matrix.getTranslation() - front * 35, mesh_matrix.getTranslation(), Vector3(0, 1, 0));
+        Matrix44 unified;
+        unified = pitchmat * yawmat;
+        Vector3 front = unified.frontVector();
 
-    bool moving = false;
+        camera->lookAt(mesh_matrix.getTranslation() - front * 35, mesh_matrix.getTranslation(), Vector3(0, 1, 0));
 
-    Vector3 position = mesh_matrix.getTranslation();
+        bool moving = false;
 
-    if (Input::isKeyPressed(SDL_SCANCODE_W)) {
-        moving = true;
-        character_facing_rad = camera_yaw;
-        front.y = 0.0f; // DISCARD HEIGHT IN THE DIRECTION
-        position += front * seconds_elapsed * speed;
-    }
-
-    if (Input::isKeyPressed(SDL_SCANCODE_S)) {
-        moving = true;
-        character_facing_rad = camera_yaw - PI;
-        front.y = 0.0f;
-        position -= front * seconds_elapsed * speed;
-    }
-
-    if (Input::isKeyPressed(SDL_SCANCODE_A)) {
-        moving = true;
+        Vector3 position = mesh_matrix.getTranslation();
 
         if (Input::isKeyPressed(SDL_SCANCODE_W)) {
-            character_facing_rad = camera_yaw - PI / 4;
-        }
-        else if (Input::isKeyPressed(SDL_SCANCODE_S)) {
-            character_facing_rad = camera_yaw - 3 * PI / 4;
-        }
-        else character_facing_rad = camera_yaw - PI / 2;
-
-        position.x += front.z * seconds_elapsed * speed;
-        position.z -= front.x * seconds_elapsed * speed;
-    }
-
-    if (Input::isKeyPressed(SDL_SCANCODE_D)) {
-        moving = true;
-
-        if (Input::isKeyPressed(SDL_SCANCODE_W)) {
-            character_facing_rad = camera_yaw + PI / 4;
-        }
-        else if (Input::isKeyPressed(SDL_SCANCODE_S)) {
-            character_facing_rad = camera_yaw + 3 * PI / 4;
-        }
-        else character_facing_rad = camera_yaw + PI / 2;
-
-        position.x -= front.z * seconds_elapsed * speed;
-        position.z += front.x * seconds_elapsed * speed;
-    }
-
-    if (punch_duration > 0) {
-        punch_duration -= seconds_elapsed;
-        is_running = false;
-        moving = false;
-    }
-
-    if (moving) {
-        if (!is_running) {
-            is_running = true;
-            animator.playAnimation("data/animations/character/running.skanim");
+            moving = true;
+            character_facing_rad = camera_yaw;
+            front.y = 0.0f; // DISCARD HEIGHT IN THE DIRECTION
+            position += front * seconds_elapsed * speed;
         }
 
-        Vector3 collision_point, collision_normal;
-        bool collision_detected = false;
+        if (Input::isKeyPressed(SDL_SCANCODE_S)) {
+            moving = true;
+            character_facing_rad = camera_yaw - PI;
+            front.y = 0.0f;
+            position -= front * seconds_elapsed * speed;
+        }
 
-        for (Entity* child : root->children) {
-            EntityCollider* collider = dynamic_cast<EntityCollider*>(child);
-            if (collider && (collider->layer & SCENARIO)) {
-                if (collider->testSphereCollision(collider->model, position + Vector3(0.f, character_height, 0.0f), sphere_collision_radius, collision_point, collision_normal)) {
-                    collision_detected = true;
-                    break;
+        if (Input::isKeyPressed(SDL_SCANCODE_A)) {
+            moving = true;
+
+            if (Input::isKeyPressed(SDL_SCANCODE_W)) {
+                character_facing_rad = camera_yaw - PI / 4;
+            }
+            else if (Input::isKeyPressed(SDL_SCANCODE_S)) {
+                character_facing_rad = camera_yaw - 3 * PI / 4;
+            }
+            else {
+                character_facing_rad = camera_yaw - PI / 2;
+            }
+
+            position.x += front.z * seconds_elapsed * speed;
+            position.z -= front.x * seconds_elapsed * speed;
+        }
+
+        if (Input::isKeyPressed(SDL_SCANCODE_D)) {
+            moving = true;
+
+            if (Input::isKeyPressed(SDL_SCANCODE_W)) {
+                character_facing_rad = camera_yaw + PI / 4;
+            }
+            else if (Input::isKeyPressed(SDL_SCANCODE_S)) {
+                character_facing_rad = camera_yaw + 3 * PI / 4;
+            }
+            else {
+                character_facing_rad = camera_yaw + PI / 2;
+            }
+
+            position.x -= front.z * seconds_elapsed * speed;
+            position.z += front.x * seconds_elapsed * speed;
+        }
+
+        if (punch_duration > 0) {
+            punch_duration -= seconds_elapsed;
+            is_running = false;
+            moving = false;
+        }
+
+        if (moving) {
+            if (!is_running) {
+                is_running = true;
+                animator.playAnimation("data/animations/character/running.skanim");
+            }
+
+            Vector3 collision_point, collision_normal;
+            bool collision_detected = false;
+
+            for (Entity* child : root->children) {
+                EntityCollider* collider = dynamic_cast<EntityCollider*>(child);
+                if (collider && (collider->layer & SCENARIO)) {
+                    if (collider->testSphereCollision(collider->model, position + Vector3(0.f, character_height, 0.0f), sphere_collision_radius, collision_point, collision_normal)) {
+                        collision_detected = true;
+                        break;
+                    }
                 }
+            }
+
+            if (!collision_detected) {
+                mesh_matrix.setTranslation(position);
+                mesh_matrix.rotate(character_facing_rad, Vector3(0, 1, 0));
+                mesh_matrix.scale(0.05f, 0.05f, 0.05f);
+            }
+
+            // Start walk sound if not already playing
+            if (!is_walking_sound_playing) {
+                BASS_ChannelPlay(hWalkChannel, true);
+                BASS_ChannelSetAttribute(hWalkChannel, BASS_ATTRIB_FREQ, 44100 * walk_speed);
+                is_walking_sound_playing = true;
             }
         }
 
-        if (!collision_detected) {
-            mesh_matrix.setTranslation(position);
-            mesh_matrix.rotate(character_facing_rad, Vector3(0, 1, 0));
-            mesh_matrix.scale(0.05f, 0.05f, 0.05f);
+        if (!moving && is_running || is_punching && punch_duration <= 0) {
+            is_running = false;
+            is_punching = false;
+            animator.playAnimation("data/animations/character/idle.skanim");
+
+            // Stop walk sound when movement stops
+            BASS_ChannelStop(hWalkChannel);
+            is_walking_sound_playing = false;
         }
 
-        // Start walk sound if not already playing
-        if (!is_walking_sound_playing) {
-            //hWalkChannel = BASS_SampleGetChannel(hWalkSample, false);
-            BASS_ChannelPlay(hWalkChannel, true);
-            BASS_ChannelSetAttribute(hWalkChannel, BASS_ATTRIB_FREQ, 44100 * walk_speed);
-            is_walking_sound_playing = true;
-        }
+        hulda->update(seconds_elapsed, position);
+        break;
     }
 
-    if (!moving && is_running || is_punching && punch_duration <= 0) {
-        is_running = false;
-        is_punching = false;
-        animator.playAnimation("data/animations/character/idle.skanim");
-
-        // Stop walk sound when movement stops
-        BASS_ChannelStop(hWalkChannel);
-        is_walking_sound_playing = false;
+    case STATE_DEATH: {
+        
+        break;
     }
 
-    hulda->update(seconds_elapsed, position);
+    case STATE_VICTORY: {
+        // Handle victory state logic
+        break;
+    }
+
+    default: {
+        break;
+    }
+    }
 }
 
 void Game::onKeyUp(SDL_KeyboardEvent event)
@@ -633,19 +712,20 @@ void Game::onKeyUp(SDL_KeyboardEvent event)
 
 // Keyboard event handler (sync input)
 void Game::onKeyDown(SDL_KeyboardEvent event) {
-    if (!game_started) {
+    if (currentState == STATE_MAIN_MENU) {
         mainMenu->handleInput(event);
         return;
     }
 
     switch (event.keysym.sym) {
     case SDLK_ESCAPE:
-        must_exit = true;
-        break; // ESC key, kill the app
+        currentState = STATE_MAIN_MENU;
+        mainMenu->setActive(true); // Reactivate the main menu
+        break;
     case SDLK_F1:
         Shader::ReloadAll();
         break;
-    case SDLK_e: // Handle the healing input here if necessary
+    case SDLK_e:
         if (flask_uses > 0) {
             if (current_health < max_health) {
                 current_health = std::min(max_health, current_health + heal_amount);
@@ -654,8 +734,19 @@ void Game::onKeyDown(SDL_KeyboardEvent event) {
             }
         }
         break;
+    case SDLK_k:
+        currentState = STATE_DEATH;
+        break;
+    case SDLK_j:
+        currentState = STATE_VICTORY;
+        break;
+    case SDLK_l:
+        currentState = STATE_PLAYING;
+        break;
     }
 }
+
+
 
 
 
@@ -726,3 +817,6 @@ void Game::renderDebugCollisions()
 
     shader->disable();
 }
+
+
+
