@@ -60,6 +60,7 @@ float sphere_collision_radius = 4.0f;
 bool right_punch = true;
 bool is_punching = false;
 float punch_duration = 0;
+float imunity;
 
 Hulda* hulda = new Hulda();
 
@@ -463,23 +464,25 @@ void Game::update(double seconds_elapsed) {
     unified = pitchmat * yawmat;
     Vector3 front = unified.frontVector();
 
-    camera->lookAt(mesh_matrix.getTranslation() - front * 35, mesh_matrix.getTranslation(), Vector3(0, 1, 0));
+    Vector3 viewpoint = mesh_matrix.getTranslation();
+    viewpoint.y += 10;
+
+    camera->lookAt(mesh_matrix.getTranslation() - front * 35, viewpoint, Vector3(0, 1, 0));
 
     bool moving = false;
+    front.y = 0.0f; // DISCARD HEIGHT IN THE DIRECTION
 
     Vector3 position = mesh_matrix.getTranslation();
 
     if (Input::isKeyPressed(SDL_SCANCODE_W)) {
         moving = true;
         character_facing_rad = camera_yaw;
-        front.y = 0.0f; // DISCARD HEIGHT IN THE DIRECTION
         position += front * seconds_elapsed * speed;
     }
 
     if (Input::isKeyPressed(SDL_SCANCODE_S)) {
         moving = true;
         character_facing_rad = camera_yaw - PI;
-        front.y = 0.0f;
         position -= front * seconds_elapsed * speed;
     }
 
@@ -564,6 +567,15 @@ void Game::update(double seconds_elapsed) {
     }
 
     hulda->update(seconds_elapsed, position);
+    if (hulda->heavyHit() && imunity <= 0) {
+        current_health -= 5;
+        imunity = 0.2;
+    }
+
+    if (imunity > 0) {
+        imunity -= seconds_elapsed;
+    }
+    std::cout << current_health << std::endl;
 }
 
 void Game::onKeyUp(SDL_KeyboardEvent event)

@@ -39,9 +39,9 @@ public:
     MainMenu* mainMenu;
 
     int flask_uses = 3;
-    float current_health = 10.0f;
+    float current_health = 100.0f;
     const float max_health = 100.0f;
-    const float heal_amount = 20.0f;
+    const float heal_amount = 40.0f;
 
     void playAudio();
 

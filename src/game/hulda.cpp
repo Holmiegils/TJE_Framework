@@ -5,7 +5,8 @@
 #include "game.h"
 #include <iostream>
 
-Hulda::Hulda() : health(50.0f), character_facing_rad(PI/2), is_running(false), punch_duration(0), chase_threshold(100.0f) {
+Hulda::Hulda() : health(50.0f), character_facing_rad(PI / 2), is_running(false), attack_duration(0), 
+is_punching(false), hit_character(false), chase_threshold(100.0f) {
     mesh_matrix.setIdentity();
 }
 
@@ -17,7 +18,6 @@ void Hulda::initialize() {
     animator.playAnimation("data/animations/hulda/idle.skanim");
 
     mesh_matrix.setTranslation(Vector3(200, 0, 0));
-    mesh_matrix.scale(0.1f, 0.1f, 0.1f);
 }
 
 void Hulda::render(Camera* camera) {
@@ -46,10 +46,10 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
 
     float target_angle = -atan2(direction.x, direction.z);
 
-    if (distance_to_character < chase_threshold && distance_to_character > 12) {
+    if (distance_to_character < chase_threshold && distance_to_character > 15) {
         moving = true;
 
-        if (punch_duration <= 0) {
+        if (attack_duration <= 0) {
             character_facing_rad = target_angle;
 
             float speed = 10.0f;
@@ -57,27 +57,33 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
         }
     }
 
-    if (punch_duration > 0) {
-        punch_duration -= seconds_elapsed;
+    if (attack_duration > 0) {
+        attack_duration -= seconds_elapsed;
     }
 
     //std::cout << is_running << ", " << moving << std::endl;
-    if (!is_running && moving && punch_duration <= 0) {
+    if (!is_running && moving && attack_duration <= 0) {
         is_running = true;
         animator.playAnimation("data/animations/hulda/running.skanim");
     }                                    
 
-    if (distance_to_character < 5 && punch_duration <= 0) {
-        animator.playAnimation("data/animations/hulda/punch.skanim");
-    }
+    /*if (distance_to_character < 5) {
+        if (!is_punching) {
+            is_punching = true;
+            character_facing_rad = target_angle;
+            animator.playAnimation("data/animations/hulda/punch.skanim");
+            attack_duration = 0.33f;
+        }
+    }*/
+    else is_punching = false;
 
     if (!moving) {
         if (is_running) {
             is_running = false;
-            animator.playAnimation("data/animations/hulda/attack.skanim");
+            animator.playAnimation("data/animations/hulda/heavy.skanim");
         }
-        if (punch_duration <= 0 && distance_to_character < chase_threshold) {
-            punch_duration = 2.6f;
+        if (attack_duration <= 0 && distance_to_character < chase_threshold) {
+            attack_duration = 2.6f;
             character_facing_rad = target_angle;
         }
     }
@@ -85,6 +91,28 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
     mesh_matrix.setTranslation(position);
     mesh_matrix.rotate(character_facing_rad, Vector3(0, 1, 0));
     mesh_matrix.scale(0.1f, 0.1f, 0.1f);
+
+    if (distance_to_character <= 15 && attack_duration > 1.1f && attack_duration < 1.2f) {
+        // Check if the character is in front of Hulda
+        Vector3 forward = mesh_matrix.frontVector();
+        Vector3 to_character = (character_pos - position).normalize();
+        float dot_product = forward.dot(to_character);
+        std::cout << dot_product << std::endl;
+
+        // If the dot product is close to 1, it means the character is in front of Hulda
+        if (dot_product > 0.09f) { // Adjust the threshold as needed
+            hit_character = true;
+        }
+        else {
+            hit_character = false;
+        }
+    }
+    else {
+        hit_character = false;
+    }
 }
 
+bool Hulda::heavyHit() const {
+    return hit_character;
+}
 
