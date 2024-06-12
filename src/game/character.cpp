@@ -166,7 +166,7 @@ bool Character::isPunching() const {
 }
 
 bool Character::isImmune() const {
-    return immunity <= 0;
+    return immunity > 0;
 }
 
 void Character::setImmunity() {

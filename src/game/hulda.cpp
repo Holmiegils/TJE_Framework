@@ -113,6 +113,8 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
 }
 
 bool Hulda::heavyHit() const {
+    std::cout << hit_character << std::endl;
     return hit_character;
+
 }
 
