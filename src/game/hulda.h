@@ -21,8 +21,12 @@ public:
     void render(Camera* camera);
     void update(double seconds_elapsed, Vector3 character_pos);
 
+    Vector3 getPosition() const;
     float getHealth() const { return health; }
     bool heavyHit() const;
+    bool isImmune() const;
+    void setImmunity();
+    void takeDamage(float damage);
 
     void loadAudio();
 
@@ -41,6 +45,7 @@ private:
     float attack_duration;
     bool is_punching;
     bool hit_character;
+    float immunity;
 
     HCHANNEL hHuldaIdleChannel;
     HCHANNEL hHuldaPunchChannel;

@@ -6,8 +6,8 @@
 #include <iostream>
 #include <bass.h>
 
-Hulda::Hulda() : health(50.0f), character_facing_rad(PI / 2), is_running(false), attack_duration(0),
-is_punching(false), hit_character(false), chase_threshold(100.0f) {
+Hulda::Hulda() : health(50.0f), character_facing_rad(PI / 2), is_running(false), attack_duration(0), 
+is_punching(false), hit_character(false), chase_threshold(100.0f), immunity(0) {
     mesh_matrix.setIdentity();
 }
 
@@ -76,7 +76,18 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
         
     }
 
-    else is_punching = false;
+    //else is_punching = false;
+    
+
+    /*if (distance_to_character < 5) {
+        if (!is_punching) {
+            is_punching = true;
+            character_facing_rad = target_angle;
+            animator.playAnimation("data/animations/hulda/punch.skanim");
+            attack_duration = 0.33f;
+        }
+    }*/
+    //else is_punching = false;
 
     if (!moving) {
         if (is_running) {
@@ -90,10 +101,15 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
             character_facing_rad = target_angle;
         }
     }
+  
 
     mesh_matrix.setTranslation(position);
     mesh_matrix.rotate(character_facing_rad, Vector3(0, 1, 0));
     mesh_matrix.scale(0.1f, 0.1f, 0.1f);
+
+    if (immunity > 0) {
+        immunity -= seconds_elapsed;
+    }
 
     if (distance_to_character <= 15 && attack_duration > 1.1f && attack_duration < 1.2f) {
         // Check if the character is in front of Hulda
@@ -109,14 +125,32 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
             hit_character = false;
         }
     }
-    else {
-        hit_character = false;
-    }
+    else hit_character = false;
+}
+
+Vector3 Hulda::getPosition() const {
+    return mesh_matrix.getTranslation();
 }
 
 bool Hulda::heavyHit() const {
     return hit_character;
 }
+
+
+
+bool Hulda::isImmune() const {
+    return immunity > 0;
+}
+
+void Hulda::setImmunity() {
+    immunity = 0.2;
+}
+
+void Hulda::takeDamage(float damage) {
+    health -= damage;
+    std::cout << "health is: " << health << std::endl;
+}
+
 
 void Hulda::loadAudio() {
 
