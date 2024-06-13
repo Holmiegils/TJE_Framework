@@ -8,7 +8,7 @@
 
 
 Character::Character() : is_running(false), character_facing_rad(0), right_punch(true), is_punching(false), punch_duration(0),
-character_height(5.0f), immunity(0), sphere_collision_radius(4.0f) {
+character_height(5.0f), immunity(0), sphere_collision_radius(4.0f), hit_hulda(false) {
     mesh_matrix.setIdentity();
 }
 
@@ -37,7 +37,7 @@ void Character::render(Camera* camera) {
     shader->disable();
 }
 
-void Character::update(double seconds_elapsed, const Vector3& camera_front, float camera_yaw) {
+void Character::update(double seconds_elapsed, const Vector3& camera_front, float camera_yaw, Vector3 hulda_pos) {
     animator.update(seconds_elapsed);
 
     float speed = 25.0f;
@@ -56,13 +56,23 @@ void Character::update(double seconds_elapsed, const Vector3& camera_front, floa
     if (Input::isKeyPressed(SDL_SCANCODE_W)) {
         moving = true;
         character_facing_rad = camera_yaw;
-        position += front * seconds_elapsed * speed;
+
+        Vector3 next_position = position + front * seconds_elapsed * speed;
+        float next_distance_to_hulda = (hulda_pos - next_position).length();
+        if (next_distance_to_hulda > 5) {
+            position = next_position;
+        }
     }
 
     if (Input::isKeyPressed(SDL_SCANCODE_S)) {
         moving = true;
         character_facing_rad = camera_yaw - PI;
-        position -= front * seconds_elapsed * speed;
+
+        Vector3 next_position = position - front * seconds_elapsed * speed;
+        float next_distance_to_hulda = (hulda_pos - next_position).length();
+        if (next_distance_to_hulda > 5) {
+            position = next_position;
+        }
     }
 
     if (Input::isKeyPressed(SDL_SCANCODE_A)) {
@@ -78,8 +88,14 @@ void Character::update(double seconds_elapsed, const Vector3& camera_front, floa
             character_facing_rad = camera_yaw - PI / 2;
         }
 
-        position.x += front.z * seconds_elapsed * speed;
-        position.z -= front.x * seconds_elapsed * speed;
+        Vector3 next_position = position;
+        next_position.x += front.z * seconds_elapsed * speed;
+        next_position.z -= front.x * seconds_elapsed * speed;
+
+        float next_distance_to_hulda = (hulda_pos - next_position).length();
+        if (next_distance_to_hulda > 5) {
+            position = next_position;
+        }
     }
 
     if (Input::isKeyPressed(SDL_SCANCODE_D)) {
@@ -95,8 +111,14 @@ void Character::update(double seconds_elapsed, const Vector3& camera_front, floa
             character_facing_rad = camera_yaw + PI / 2;
         }
 
-        position.x -= front.z * seconds_elapsed * speed;
-        position.z += front.x * seconds_elapsed * speed;
+        Vector3 next_position = position;
+        next_position.x -= front.z * seconds_elapsed * speed;
+        next_position.z += front.x * seconds_elapsed * speed;
+
+        float next_distance_to_hulda = (hulda_pos - next_position).length();
+        if (next_distance_to_hulda > 5) {
+            position = next_position;
+        }
     }
 
     if (punch_duration > 0) {
@@ -107,7 +129,6 @@ void Character::update(double seconds_elapsed, const Vector3& camera_front, floa
 
     if (Input::isMousePressed(SDL_BUTTON_LEFT)) {
          if (punch_duration < 0.5f) {
-            character_facing_rad = camera_yaw;
             if (right_punch) animator.playAnimation("data/animations/character/right_punch.skanim");
             else animator.playAnimation("data/animations/character/left_punch.skanim");
             right_punch = !right_punch;
@@ -115,6 +136,11 @@ void Character::update(double seconds_elapsed, const Vector3& camera_front, floa
             punch_duration = 1;
         }
     }
+
+    float distance_to_hulda = (hulda_pos - mesh_matrix.getTranslation()).length();
+    Vector3 forward = mesh_matrix.frontVector();
+    Vector3 to_character = (hulda_pos - mesh_matrix.getTranslation()).normalize();
+    float dot_product = forward.dot(to_character);
 
     if (moving) {
         if (!is_running) {
@@ -151,6 +177,16 @@ void Character::update(double seconds_elapsed, const Vector3& camera_front, floa
     if (immunity > 0) {
         immunity -= seconds_elapsed;
     }
+
+    if (distance_to_hulda <= 15 && punch_duration > 0.8 && punch_duration < 0.9) {
+        if (dot_product > 0.04f) {
+            hit_hulda = true;
+        }
+        else {
+            hit_hulda = false;
+        }
+    }
+    else hit_hulda = false;
 }
 
 Vector3 Character::getPosition() const {
@@ -171,6 +207,10 @@ bool Character::isImmune() const {
 
 void Character::setImmunity() {
     immunity = 0.2;
+}
+
+bool Character::huldaIsHit() const {
+    return hit_hulda;
 }
 
 //void Character::setPosition(const Vector3& position) {

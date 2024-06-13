@@ -6,7 +6,7 @@
 #include <iostream>
 
 Hulda::Hulda() : health(50.0f), character_facing_rad(PI / 2), is_running(false), attack_duration(0), 
-is_punching(false), hit_character(false), chase_threshold(100.0f) {
+is_punching(false), hit_character(false), chase_threshold(100.0f), immunity(0) {
     mesh_matrix.setIdentity();
 }
 
@@ -75,7 +75,7 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
             attack_duration = 0.33f;
         }
     }*/
-    else is_punching = false;
+    //else is_punching = false;
 
     if (!moving) {
         if (is_running) {
@@ -92,12 +92,15 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
     mesh_matrix.rotate(character_facing_rad, Vector3(0, 1, 0));
     mesh_matrix.scale(0.1f, 0.1f, 0.1f);
 
+    if (immunity > 0) {
+        immunity -= seconds_elapsed;
+    }
+
     if (distance_to_character <= 15 && attack_duration > 1.1f && attack_duration < 1.2f) {
         // Check if the character is in front of Hulda
         Vector3 forward = mesh_matrix.frontVector();
         Vector3 to_character = (character_pos - position).normalize();
         float dot_product = forward.dot(to_character);
-        std::cout << dot_product << std::endl;
 
         // If the dot product is close to 1, it means the character is in front of Hulda
         if (dot_product > 0.09f) { // Adjust the threshold as needed
@@ -107,14 +110,26 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
             hit_character = false;
         }
     }
-    else {
-        hit_character = false;
-    }
+    else hit_character = false;
+}
+
+Vector3 Hulda::getPosition() const {
+    return mesh_matrix.getTranslation();
 }
 
 bool Hulda::heavyHit() const {
-    std::cout << hit_character << std::endl;
     return hit_character;
-
 }
 
+bool Hulda::isImmune() const {
+    return immunity > 0;
+}
+
+void Hulda::setImmunity() {
+    immunity = 0.2;
+}
+
+void Hulda::takeDamage(float damage) {
+    health -= damage;
+    std::cout << "health is: " << health << std::endl;
+}

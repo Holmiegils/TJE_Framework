@@ -523,7 +523,7 @@ void Game::update(double seconds_elapsed) {
 
         camera->lookAt(character->getPosition() - front * 35, viewpoint, Vector3(0, 1, 0));
 
-        character->update(seconds_elapsed, front, camera_yaw);
+        character->update(seconds_elapsed, front, camera_yaw, hulda->getPosition());
 
         if (character->isRunning()) {
             if (!is_walking_sound_playing) {
@@ -543,11 +543,17 @@ void Game::update(double seconds_elapsed) {
             BASS_ChannelStop(hWalkChannel);
         }
 
+        if (character->huldaIsHit() && !hulda->isImmune()) {
+            hulda->takeDamage(20.0f);
+            hulda->setImmunity();
+        }
+
         hulda->update(seconds_elapsed, character->getPosition());
+
         if (hulda->heavyHit() && !character->isImmune()) {
             current_health -= 50;
             character->setImmunity();
-        }
+        } 
         break;
     }
 
