@@ -40,6 +40,7 @@ public:
     int fps;
     bool must_exit;
     bool death_sound_played;
+    bool hulda_death_sound_played;
 
     // some vars
     Camera* camera;

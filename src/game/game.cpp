@@ -175,8 +175,11 @@ HCHANNEL hHealChannel;
 
 HCHANNEL hWalkChannel;
 
+HCHANNEL hDamageChannel;
+
 HCHANNEL hDeathChannel;
 
+HCHANNEL hVictroyChannel;
 
 void Game::loadAudio() {
     // Load background music stream from disk
@@ -211,13 +214,27 @@ void Game::loadAudio() {
     }
     BASS_ChannelSetAttribute(hWalkChannel, BASS_ATTRIB_VOL, 0.2); // Set walk sound volume
 
+    hDamageChannel = BASS_StreamCreateFile(false, "data/audio/damage.wav", 0, 0, 0);
+    if (hDamageChannel == 0) {
+        std::cerr << "Error loading audio stream: char_death.wav" << std::endl;
+        return;
+    }
+    BASS_ChannelSetAttribute(hDamageChannel, BASS_ATTRIB_VOL, 0.5);
+
 
     hDeathChannel = BASS_StreamCreateFile(false, "data/audio/char_death.wav", 0, 0, 0);
     if (hDeathChannel == 0) {
         std::cerr << "Error loading audio stream: char_death.wav" << std::endl;
         return;
     }
-    BASS_ChannelSetAttribute(hDeathChannel, BASS_ATTRIB_VOL, 1.0);
+    BASS_ChannelSetAttribute(hDeathChannel, BASS_ATTRIB_VOL, 0.5);
+
+    hVictroyChannel = BASS_StreamCreateFile(false, "data/audio/hulda_death.wav", 0, 0, 0);
+    if (hVictroyChannel == 0) {
+        std::cerr << "Error loading audio stream: char_death.wav" << std::endl;
+        return;
+    }
+    BASS_ChannelSetAttribute(hVictroyChannel, BASS_ATTRIB_VOL, 1.3);
 }
 
 void Game::playAudio() {
@@ -228,7 +245,7 @@ void Game::playAudio() {
 Game::Game(int window_width, int window_height, SDL_Window* window)
     : window(window), window_width(window_width), window_height(window_height),
     frame(0), time(0.0f), elapsed_time(0.0f), fps(0), must_exit(false),
-    mouse_locked(false), game_started(false), death_sound_played(false)
+    mouse_locked(false), game_started(false), death_sound_played(false), hulda_death_sound_played(false)
 {
     this->window_width = window_width;
     this->window_height = window_height;
@@ -352,6 +369,7 @@ void Game::render() {
 // Main menu rendering should only clear and swap buffers once per frame
 void Game::renderMainMenu() {
     death_sound_played = false;
+    hulda_death_sound_played = false;
     mainMenu->render();
 
 }
@@ -493,6 +511,12 @@ void Game::update(double seconds_elapsed) {
             break;
         }
 
+        if (hulda->getHealth() <= 0) {
+            currentState = STATE_VICTORY;  // Assuming STATE_VICTORY is the correct state when Hulda dies
+            hulda_death_sound_played = false;
+            break;
+        }
+
         // Hide the cursor when the game starts
         if (game_started && !mouse_locked) {
             mouse_locked = true;
@@ -547,6 +571,7 @@ void Game::update(double seconds_elapsed) {
         if (hulda->heavyHit() && !character->isImmune()) {
             current_health -= 5;
             character->setImmunity();
+            BASS_ChannelPlay(hDamageChannel, true);
         }
         break;
     }
@@ -561,7 +586,11 @@ void Game::update(double seconds_elapsed) {
     }
 
     case STATE_VICTORY: {
-        // Handle victory state logic
+        if (!hulda_death_sound_played) {
+            BASS_ChannelStop(hSampleChannel);
+            BASS_ChannelPlay(hVictroyChannel, true);
+            hulda_death_sound_played = true;
+        }
         break;
     }
 

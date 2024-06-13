@@ -11,6 +11,7 @@
 #include "framework/entities/entity.h"
 #include "graphics/material.h"
 #include <framework/animation.h>
+#include <bass.h>
 
 class Hulda {
 public:
@@ -22,6 +23,8 @@ public:
 
     float getHealth() const { return health; }
     bool heavyHit() const;
+
+    void loadAudio();
 
 private:
     Mesh* mesh;
@@ -38,6 +41,9 @@ private:
     float attack_duration;
     bool is_punching;
     bool hit_character;
+
+    HCHANNEL hHuldaIdleChannel;
+    HCHANNEL hHuldaPunchChannel;
 };
 
 #endif // HULDA_H
