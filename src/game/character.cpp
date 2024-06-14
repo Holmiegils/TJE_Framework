@@ -7,7 +7,7 @@
 #include "framework/bass.h"'
 
 
-Character::Character() : is_running(false), character_facing_rad(0), right_punch(true), is_punching(false), punch_duration(0),
+Character::Character() : is_running(false), character_facing_rad(PI/2), right_punch(true), is_punching(false), punch_duration(0),
 character_height(5.0f), immunity(0), sphere_collision_radius(4.0f), hit_hulda(false), recovering(false) {
     mesh_matrix.setIdentity();
 }

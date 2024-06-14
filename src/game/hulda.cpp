@@ -6,7 +6,7 @@
 #include <iostream>
 #include <bass.h>
 
-Hulda::Hulda() : health(50.0f), character_facing_rad(PI / 2), is_running(false), attack_duration(0), 
+Hulda::Hulda() : health(50.0f), character_facing_rad(-PI / 2), is_running(false), attack_duration(0), 
 is_punching(false), hit_character(false), chase_threshold(100.0f), immunity(0) {
     mesh_matrix.setIdentity();
 }
@@ -50,6 +50,7 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
     float target_angle = -atan2(direction.x, direction.z);
 
     if (distance_to_character < chase_threshold && distance_to_character > 15) {
+        chase_threshold = 10000;
         moving = true;
 
         if (attack_duration <= 0) {
@@ -59,9 +60,6 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
             position += direction * speed * seconds_elapsed;
         }
     }
-
-
-    
 
     if (attack_duration > 0) {
         attack_duration -= seconds_elapsed;
