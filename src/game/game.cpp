@@ -412,7 +412,7 @@ void Game::renderHUD() {
 
     // Assume some variables health and stamina are between 0 and 1
     float health = current_health / max_health;
-    float stamina = 0.6f;
+    float stamina = current_stamina / max_stamina; // Use current_stamina
 
     // Render full bars with appropriate scaling
     renderQuad(health_full, Vector2(health_position.x - (1.0f - health) * health_size.x * 0.5f, health_position.y), health_size, health);
@@ -495,11 +495,11 @@ float walk_speed = 0.5f;
 void Game::update(double seconds_elapsed) {
     switch (currentState) {
     case STATE_MAIN_MENU: {
+        playAudio();
         mainMenu->update(seconds_elapsed);
         if (!mainMenu->isActive()) {
             currentState = STATE_PLAYING;
             game_started = true;
-            playAudio(); // Play background music when the game starts
         }
         break;
     }
@@ -512,12 +512,11 @@ void Game::update(double seconds_elapsed) {
         }
 
         if (hulda->getHealth() <= 0) {
-            currentState = STATE_VICTORY;  // Assuming STATE_VICTORY is the correct state when Hulda dies
+            currentState = STATE_VICTORY;
             hulda_death_sound_played = false;
             break;
         }
 
-        // Hide the cursor when the game starts
         if (game_started && !mouse_locked) {
             mouse_locked = true;
             SDL_ShowCursor(SDL_DISABLE);
@@ -549,15 +548,37 @@ void Game::update(double seconds_elapsed) {
 
         character->update(seconds_elapsed, front, camera_yaw, hulda->getPosition());
 
+        //std::cout << "stamina: " << current_stamina << "," << "speed:" << character->getSpeed() << std::endl;
+
+
+
+        // Handle stamina depletion and regeneration
+        if (character->getSpeed() == 50.0f && current_stamina > 0) {
+            current_stamina -= stamina_depletion_rate * seconds_elapsed;
+            if (current_stamina < 0) {
+                current_stamina = 0;
+            }
+        }
+        else {
+            current_stamina += stamina_regen_rate * seconds_elapsed;
+            if (current_stamina > max_stamina) {
+                current_stamina = max_stamina;
+            }
+        }
+
+        // Ensure character speed is reset when stamina is zero
+        if (character->getSpeed() == 50.0f && current_stamina <= 0.3f) {
+            character->setSpeed(25.0f);  // Reset speed to normal walking speed
+        }
+
         if (character->isRunning()) {
             if (!is_walking_sound_playing) {
                 BASS_ChannelPlay(hWalkChannel, true);
-                BASS_ChannelSetAttribute(hWalkChannel, BASS_ATTRIB_FREQ, 44100 * 0.5f); // Assume walk_speed is 0.5f
+                BASS_ChannelSetAttribute(hWalkChannel, BASS_ATTRIB_FREQ, 44100 * 0.5f);
                 is_walking_sound_playing = true;
             }
         }
         else {
-            // Stop walk sound when movement stops
             BASS_ChannelStop(hWalkChannel);
             is_walking_sound_playing = false;
         }
@@ -652,15 +673,6 @@ void Game::onKeyDown(SDL_KeyboardEvent event) {
             }
         }
         break;
-    case SDLK_k:
-        currentState = STATE_DEATH;
-        break;
-    case SDLK_j:
-        currentState = STATE_VICTORY;
-        break;
-    case SDLK_l:
-        currentState = STATE_PLAYING;
-        break;
     }
 }
 
@@ -700,6 +712,14 @@ void Game::onResize(int width, int height)
     camera->aspect = width / (float)height;
     window_width = width;
     window_height = height;
+}
+
+void Game::setStamina(float new_stamina) {
+    current_stamina += new_stamina;
+}
+
+float Game::getStamina() const {
+    return current_stamina;
 }
 
 // ALEX: RENDER COLLISION SPHERES AS DEBUG TO CHECK IF WE ARE DOING STUFF CORRECTLY!

@@ -48,9 +48,19 @@ public:
     MainMenu* mainMenu;
 
     int flask_uses = 3;
+    const float heal_amount = 40.0f;
+
     float current_health = 100.0f;
     const float max_health = 100.0f;
-    const float heal_amount = 40.0f;
+    
+    // Stamina variables
+    float current_stamina = 100.0f;
+    const float max_stamina = 100.0f;
+    const float stamina_depletion_rate = 20.0f; // Stamina depletion rate per second
+    const float stamina_regen_rate = 10.0f; // Stamina regeneration rate per second
+
+    void setStamina(float new_stamina);
+    float getStamina() const;
 
     void playAudio();
 

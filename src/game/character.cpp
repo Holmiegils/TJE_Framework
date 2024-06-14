@@ -40,11 +40,15 @@ void Character::render(Camera* camera) {
 void Character::update(double seconds_elapsed, const Vector3& camera_front, float camera_yaw, Vector3 hulda_pos) {
     animator.update(seconds_elapsed);
 
-    float speed = 25.0f;
+    float normal_speed = 25.0f;
     float sprint_speed = 50.0f;
 
-    if (Input::isKeyPressed(SDL_SCANCODE_LSHIFT)) {
+    // Check if sprinting is allowed
+    if (Input::isKeyPressed(SDL_SCANCODE_LSHIFT) && Game::instance->current_stamina > 0.3f) {
         speed = sprint_speed;
+    }
+    else {
+        speed = normal_speed;
     }
 
     Vector3 front = camera_front;
@@ -128,12 +132,16 @@ void Character::update(double seconds_elapsed, const Vector3& camera_front, floa
     }
 
     if (Input::isMousePressed(SDL_BUTTON_LEFT)) {
-         if (punch_duration < 0.5f) {
+        if (punch_duration < 0.5f && Game::instance->getStamina() >= 20.0f) {
             if (right_punch) animator.playAnimation("data/animations/character/right_punch.skanim");
             else animator.playAnimation("data/animations/character/left_punch.skanim");
             right_punch = !right_punch;
             is_punching = true;
             punch_duration = 1;
+
+            Game::instance->setStamina(-20.0f);
+
+
         }
     }
 
@@ -212,6 +220,15 @@ void Character::setImmunity() {
 bool Character::huldaIsHit() const {
     return hit_hulda;
 }
+
+void Character::setSpeed(float new_speed) {
+    speed = new_speed;
+}
+
+float Character::getSpeed() const {
+    return speed;
+}
+
 
 //void Character::setPosition(const Vector3& position) {
 //    mesh_matrix.setTranslation(position);

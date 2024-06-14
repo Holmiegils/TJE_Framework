@@ -18,12 +18,16 @@ public:
     void render(Camera* camera);
     void update(double seconds_elapsed, const Vector3& camera_front, float camera_yaw, Vector3 hulda_pos);
 
+
     Vector3 getPosition() const;
     bool isRunning() const;
     bool isPunching() const;
     bool isImmune() const;
     void setImmunity();
     bool huldaIsHit() const;
+
+    void setSpeed(float new_speed);
+    float getSpeed() const;
     /*void setPosition(const Vector3& position);
 
     float getFacing() const;
@@ -47,6 +51,8 @@ private:
     float sphere_collision_radius;
     float immunity;
     bool hit_hulda;
+
+    float speed;
 };
 
 #endif // CHARACTER_H
