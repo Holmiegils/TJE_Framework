@@ -145,11 +145,10 @@ void Character::update(double seconds_elapsed, const Vector3& camera_front, floa
 
     if (immunity > 0) {
         immunity -= seconds_elapsed;
-    }
-    else if (recovering) {
+        position -= mesh_matrix.frontVector() * seconds_elapsed * 2000;
+    } else if (recovering) {
         recovering = false;
         animator.playAnimation("data/animations/character/idle.skanim");
-        position -= Vector3(6, 0, 0);
     }
 
     float distance_to_hulda = (hulda_pos - mesh_matrix.getTranslation()).length();
@@ -218,8 +217,8 @@ bool Character::isImmune() const {
 }
 
 void Character::takeDamage(const Vector3& hulda_pos) {
-    immunity = 0.7f;
-    animator.playAnimation("data/animations/character/hit_reaction.skanim");
+    immunity = 0.2f;
+    animator.playAnimation("data/animations/character/hit.skanim");
     recovering = true;
 
     Vector3 position = mesh_matrix.getTranslation();
