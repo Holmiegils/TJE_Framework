@@ -55,11 +55,6 @@ Hulda* hulda = new Hulda();
 // Declaration of meshes_to_load
 std::unordered_map<std::string, std::vector<Matrix44>> meshes_to_load;
 
-
-GameState currentState = STATE_MAIN_MENU;
-
-
-
 bool parseScene(const char* filename, Entity* root) {
     std::cout << " + Scene loading: " << filename << "..." << std::endl;
     std::ifstream file(filename);
@@ -122,8 +117,7 @@ bool parseScene(const char* filename, Entity* root) {
     return true;
 }
 
-std::vector<std::string> tokenize(const std::string& str, const std::string& delimiters)
-{
+std::vector<std::string> tokenize(const std::string& str, const std::string& delimiters) {
     std::vector<std::string> tokens;
     size_t prev = 0, pos = 0;
     do {
@@ -136,8 +130,7 @@ std::vector<std::string> tokenize(const std::string& str, const std::string& del
     return tokens;
 }
 
-void Game::renderQuad(Texture* texture, Vector2 position, Vector2 size, float scale)
-{
+void Game::renderQuad(Texture* texture, Vector2 position, Vector2 size, float scale) {
     Mesh quad;
     quad.vertices.push_back(Vector3(-0.5, 0.5, 0));
     quad.uvs.push_back(Vector2(0, 1));
@@ -166,19 +159,12 @@ void Game::renderQuad(Texture* texture, Vector2 position, Vector2 size, float sc
     shader->disable();
 }
 
-
-HCHANNEL hSampleChannel; 
-
+HCHANNEL hSampleChannel;
 HCHANNEL hPunchChannel;
-
 HCHANNEL hHealChannel;
-
 HCHANNEL hWalkChannel;
-
 HCHANNEL hDamageChannel;
-
 HCHANNEL hDeathChannel;
-
 HCHANNEL hVictroyChannel;
 
 void Game::loadAudio() {
@@ -216,11 +202,10 @@ void Game::loadAudio() {
 
     hDamageChannel = BASS_StreamCreateFile(false, "data/audio/damage.wav", 0, 0, 0);
     if (hDamageChannel == 0) {
-        std::cerr << "Error loading audio stream: char_death.wav" << std::endl;
+        std::cerr << "Error loading audio stream: damage.wav" << std::endl;
         return;
     }
     BASS_ChannelSetAttribute(hDamageChannel, BASS_ATTRIB_VOL, 0.5);
-
 
     hDeathChannel = BASS_StreamCreateFile(false, "data/audio/char_death.wav", 0, 0, 0);
     if (hDeathChannel == 0) {
@@ -231,7 +216,7 @@ void Game::loadAudio() {
 
     hVictroyChannel = BASS_StreamCreateFile(false, "data/audio/hulda_death.wav", 0, 0, 0);
     if (hVictroyChannel == 0) {
-        std::cerr << "Error loading audio stream: char_death.wav" << std::endl;
+        std::cerr << "Error loading audio stream: hulda_death.wav" << std::endl;
         return;
     }
     BASS_ChannelSetAttribute(hVictroyChannel, BASS_ATTRIB_VOL, 1.3);
@@ -245,8 +230,7 @@ void Game::playAudio() {
 Game::Game(int window_width, int window_height, SDL_Window* window)
     : window(window), window_width(window_width), window_height(window_height),
     frame(0), time(0.0f), elapsed_time(0.0f), fps(0), must_exit(false),
-    mouse_locked(false), game_started(false), death_sound_played(false), hulda_death_sound_played(false)
-{
+    mouse_locked(false), game_started(false), death_sound_played(false), hulda_death_sound_played(false) {
     this->window_width = window_width;
     this->window_height = window_height;
     this->window = window;
@@ -258,6 +242,15 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     time = 0.0f;
     elapsed_time = 0.0f;
     mouse_locked = false;
+
+    currentState = STATE_MAIN_MENU; // Ensure state is set to main menu
+
+    // Initialize the game
+    initialize();
+}
+
+void Game::initialize() {
+    currentState = STATE_MAIN_MENU;
 
     // Initialize BASS
     if (BASS_Init(-1, 44100, 0, 0, NULL) == false) {
@@ -303,37 +296,13 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
 
     // Initialize the main menu
     mainMenu = new MainMenu();
+    mainMenu->initialize(); // Ensure initialization of the main menu
     mainMenu->setActive(true); // Set the main menu as active
 
-    // Set the initial game state to main menu
-    currentState = STATE_MAIN_MENU;
+    // Play background music immediately
+    playAudio();
 }
 
-// what to do when the image has to be drawn
-// Include this function to render the game scene
-void Game::renderGameScene() {
-    // Set the camera as default
-    camera->enable();
-
-    // Set flags
-    glDisable(GL_BLEND);
-    glEnable(GL_DEPTH_TEST);
-    glDisable(GL_CULL_FACE);
-
-    character->render(camera);
-    
-    shader->enable();
-    root->render(camera);
-    shader->disable();
-
-    // Render Hulda before the HUD
-    hulda->render(camera);
-
-    // Render the FPS, Draw Calls, etc.
-    drawText(2, 2, getGPUStats(), Vector3(1, 1, 1), 2);
-}
-
-// Main render function
 void Game::render() {
     // Set the clear color (the background color)
     glClearColor(0.0, 0.0, 0.0, 1.0);
@@ -366,15 +335,39 @@ void Game::render() {
     SDL_GL_SwapWindow(this->window);
 }
 
-// Main menu rendering should only clear and swap buffers once per frame
 void Game::renderMainMenu() {
+    currentState = STATE_MAIN_MENU;
     death_sound_played = false;
     hulda_death_sound_played = false;
-    mainMenu->render();
 
+    // Clear buffers to ensure the main menu is rendered correctly
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    mainMenu->render();
 }
 
-// Add functions to render the death and victory overlays
+void Game::renderGameScene() {
+    // Set the camera as default
+    camera->enable();
+
+    // Set flags
+    glDisable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+
+    character->render(camera);
+
+    shader->enable();
+    root->render(camera);
+    shader->disable();
+
+    // Render Hulda before the HUD
+    hulda->render(camera);
+
+    // Render the FPS, Draw Calls, etc.
+    drawText(2, 2, getGPUStats(), Vector3(1, 1, 1), 2);
+}
+
 void Game::renderDeathOverlay() {
     // Define position and size for the death overlay
     Vector2 screen_position = Vector2(0.0f, 0.0f); // Centered
@@ -495,7 +488,6 @@ float walk_speed = 0.5f;
 void Game::update(double seconds_elapsed) {
     switch (currentState) {
     case STATE_MAIN_MENU: {
-        playAudio();
         mainMenu->update(seconds_elapsed);
         if (!mainMenu->isActive()) {
             currentState = STATE_PLAYING;
@@ -549,8 +541,6 @@ void Game::update(double seconds_elapsed) {
         character->update(seconds_elapsed, front, camera_yaw, hulda->getPosition());
 
         //std::cout << "stamina: " << current_stamina << "," << "speed:" << character->getSpeed() << std::endl;
-
-
 
         // Handle stamina depletion and regeneration
         if (character->getSpeed() == 50.0f && current_stamina > 0) {
@@ -627,8 +617,7 @@ void Game::update(double seconds_elapsed) {
     }
 }
 
-void Game::onKeyUp(SDL_KeyboardEvent event)
-{
+void Game::onKeyUp(SDL_KeyboardEvent event) {
     if (!game_started) {
         mainMenu->handleInput(event);
         return;
@@ -645,9 +634,6 @@ void Game::onKeyUp(SDL_KeyboardEvent event)
         break;
     }
 }
-
-
-
 
 // Keyboard event handler (sync input)
 void Game::onKeyDown(SDL_KeyboardEvent event) {
@@ -676,37 +662,27 @@ void Game::onKeyDown(SDL_KeyboardEvent event) {
     }
 }
 
-
-
-
-
-void Game::onMouseButtonDown(SDL_MouseButtonEvent event)
-{
-
-}
-
-void Game::onMouseButtonUp(SDL_MouseButtonEvent event)
-{
+void Game::onMouseButtonDown(SDL_MouseButtonEvent event) {
     // Implementation here
 }
 
-void Game::onMouseWheel(SDL_MouseWheelEvent event)
-{
+void Game::onMouseButtonUp(SDL_MouseButtonEvent event) {
+    // Implementation here
+}
+
+void Game::onMouseWheel(SDL_MouseWheelEvent event) {
     mouse_speed *= event.y > 0 ? 1.1f : 0.9f;
 }
 
-void Game::onGamepadButtonDown(SDL_JoyButtonEvent event)
-{
+void Game::onGamepadButtonDown(SDL_JoyButtonEvent event) {
     // Implementation here
 }
 
-void Game::onGamepadButtonUp(SDL_JoyButtonEvent event)
-{
+void Game::onGamepadButtonUp(SDL_JoyButtonEvent event) {
     // Implementation here
 }
 
-void Game::onResize(int width, int height)
-{
+void Game::onResize(int width, int height) {
     std::cout << "window resized: " << width << "," << height << std::endl;
     glViewport(0, 0, width, height);
     camera->aspect = width / (float)height;
@@ -721,27 +697,3 @@ void Game::setStamina(float new_stamina) {
 float Game::getStamina() const {
     return current_stamina;
 }
-
-// ALEX: RENDER COLLISION SPHERES AS DEBUG TO CHECK IF WE ARE DOING STUFF CORRECTLY!
-//void Game::renderDebugCollisions()
-//{
-//    Shader* shader = Shader::Get("data/shaders/basic.vs", "data/shaders/flat.fs");
-//    Mesh* mesh = Mesh::Get("data/meshes/sphere.obj");
-//
-//    shader->enable();
-//
-//    {
-//        Matrix44 m;
-//        m.setTranslation(mesh_matrix.getTranslation());
-//        m.translate(0.0f, character_height, 0.0f);
-//        m.scale(sphere_collision_radius, sphere_collision_radius, sphere_collision_radius);
-//
-//        shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
-//        shader->setUniform("u_color", Vector4(0.0f, 1.0f, 0.0f, 1.0f));
-//        shader->setUniform("u_model", m);
-//
-//        mesh->render(GL_LINES);
-//    }
-//
-//    shader->disable();
-//}

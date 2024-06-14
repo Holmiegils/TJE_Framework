@@ -22,6 +22,7 @@ public:
     MainMenu();
     ~MainMenu();
 
+    void initialize();  // Add this line
     void render();
     void update(double seconds_elapsed);
     void handleInput(SDL_KeyboardEvent event);
@@ -31,7 +32,7 @@ public:
 
 private:
     std::vector<MenuItem> menuItems;
-    Texture* backgroundTexture;
+    
     Shader* shader;
     bool active;
     int selectedOption;
