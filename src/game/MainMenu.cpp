@@ -8,7 +8,6 @@
 #include <chrono>
 #include "game.h"
 
-
 Texture* backgroundTexture;
 
 void MainMenu::initialize() {
@@ -23,8 +22,7 @@ void MainMenu::initialize() {
     }
 }
 
-
-MainMenu::MainMenu() : shader(nullptr), active(true), selectedOption(0) {
+MainMenu::MainMenu() : shader(nullptr), active(true), selectedOption(0), gameStarted(false) {
     initialize();
 
     menuItems.push_back({ "Start", START, Vector2(400, 300) });
@@ -40,6 +38,9 @@ void MainMenu::render() {
 
     // Render background using Game's renderQuad function
     Game::instance->renderQuad(backgroundTexture, Vector2(0, 0), Vector2(2, 2), 1.0f);
+
+    // Update the text of the first menu item based on whether the game has started
+    menuItems[0].text = gameStarted ? "Continue" : "Start";
 
     // Render menu items
     for (size_t i = 0; i < menuItems.size(); ++i) {
@@ -74,6 +75,7 @@ void MainMenu::update(double seconds_elapsed) {
         case START:
             std::cout << "Start Game" << std::endl;
             active = false;
+            gameStarted = true; // Set the flag to true when the game starts
             Game::instance->setState(STATE_PLAYING); // Change game state to playing
             break;
         case EXIT:

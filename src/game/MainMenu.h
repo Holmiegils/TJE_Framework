@@ -32,7 +32,7 @@ public:
 
 private:
     std::vector<MenuItem> menuItems;
-    
+    bool gameStarted;
     Shader* shader;
     bool active;
     int selectedOption;
