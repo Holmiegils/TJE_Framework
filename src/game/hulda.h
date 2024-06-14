@@ -37,6 +37,7 @@ private:
     Animator animator;
     Matrix44 mesh_matrix;
     float character_facing_rad;
+    float target_facing_rad; // Added member variable
     bool is_running;
 
     float health;
@@ -49,6 +50,9 @@ private:
 
     HCHANNEL hHuldaIdleChannel;
     HCHANNEL hHuldaPunchChannel;
+
+    // Added method for angle interpolation
+    float lerpAngle(float a, float b, float t);
 };
 
 #endif // HULDA_H

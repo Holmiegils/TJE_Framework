@@ -23,7 +23,7 @@ public:
     bool isRunning() const;
     bool isPunching() const;
     bool isImmune() const;
-    void setImmunity();
+    void takeDamage(const Vector3& hulda_pos);
     bool huldaIsHit() const;
 
     void setSpeed(float new_speed);
@@ -51,7 +51,7 @@ private:
     float sphere_collision_radius;
     float immunity;
     bool hit_hulda;
-
+    bool recovering;
     float speed;
 };
 

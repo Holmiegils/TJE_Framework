@@ -43,7 +43,7 @@ Texture* victory_screen_texture = NULL;
 Game* Game::instance = NULL;
 
 float camera_pitch = -0.5;
-float camera_yaw;
+float camera_yaw = -PI/2;
 
 float sphere_collision_radius = 4.0f;
 
@@ -586,8 +586,8 @@ void Game::update(double seconds_elapsed) {
         hulda->update(seconds_elapsed, character->getPosition());
 
         if (hulda->heavyHit() && !character->isImmune()) {
-            current_health -= 50;
-            character->setImmunity();
+            current_health -= 30;
+            character->takeDamage(hulda->getPosition());
             BASS_ChannelPlay(hDamageChannel, true);
         }
         break;

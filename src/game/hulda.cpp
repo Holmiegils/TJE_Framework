@@ -6,7 +6,7 @@
 #include <iostream>
 #include <bass.h>
 
-Hulda::Hulda() : health(50.0f), character_facing_rad(PI / 2), is_running(false), attack_duration(0), 
+Hulda::Hulda() : health(50.0f), character_facing_rad(PI / 2), target_facing_rad(PI / 2), is_running(false), attack_duration(0),
 is_punching(false), hit_character(false), chase_threshold(100.0f), immunity(0) {
     mesh_matrix.setIdentity();
 }
@@ -47,21 +47,16 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
     Vector3 direction = character_pos - position;
     direction.normalize();
 
-    float target_angle = -atan2(direction.x, direction.z);
+    target_facing_rad = -atan2(direction.x, direction.z);
 
     if (distance_to_character < chase_threshold && distance_to_character > 15) {
         moving = true;
 
         if (attack_duration <= 0) {
-            character_facing_rad = target_angle;
-
             float speed = 10.0f;
             position += direction * speed * seconds_elapsed;
         }
     }
-
-
-    
 
     if (attack_duration > 0) {
         attack_duration -= seconds_elapsed;
@@ -72,22 +67,7 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
         animator.playAnimation("data/animations/hulda/running.skanim");
         BASS_ChannelPlay(hHuldaIdleChannel, true);
         BASS_ChannelStop(hHuldaPunchChannel);
-        
-        
     }
-
-    //else is_punching = false;
-    
-
-    /*if (distance_to_character < 5) {
-        if (!is_punching) {
-            is_punching = true;
-            character_facing_rad = target_angle;
-            animator.playAnimation("data/animations/hulda/punch.skanim");
-            attack_duration = 0.33f;
-        }
-    }*/
-    //else is_punching = false;
 
     if (!moving) {
         if (is_running) {
@@ -98,10 +78,12 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
         }
         if (attack_duration <= 0 && distance_to_character < chase_threshold) {
             attack_duration = 2.6f;
-            character_facing_rad = target_angle;
         }
     }
-  
+
+    // Smoothly rotate towards the target facing angle
+    float rotation_speed = 2.0f; // Adjust this value to change the rotation speed
+    character_facing_rad = lerpAngle(character_facing_rad, target_facing_rad, rotation_speed * seconds_elapsed);
 
     mesh_matrix.setTranslation(position);
     mesh_matrix.rotate(character_facing_rad, Vector3(0, 1, 0));
@@ -118,7 +100,7 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
         float dot_product = forward.dot(to_character);
 
         // If the dot product is close to 1, it means the character is in front of Hulda
-        if (dot_product > 0.09f) { // Adjust the threshold as needed
+        if (dot_product > 0.08f) { // Adjust the threshold as needed
             hit_character = true;
         }
         else {
@@ -136,14 +118,12 @@ bool Hulda::heavyHit() const {
     return hit_character;
 }
 
-
-
 bool Hulda::isImmune() const {
     return immunity > 0;
 }
 
 void Hulda::setImmunity() {
-    immunity = 0.2;
+    immunity = 0.2f;
 }
 
 void Hulda::takeDamage(float damage) {
@@ -151,9 +131,7 @@ void Hulda::takeDamage(float damage) {
     std::cout << "health is: " << health << std::endl;
 }
 
-
 void Hulda::loadAudio() {
-
     hHuldaIdleChannel = BASS_StreamCreateFile(false, "data/audio/hulda_idle.wav", 0, 0, 0);
     if (hHuldaIdleChannel == 0) {
         std::cerr << "Error loading audio stream: char_death.wav" << std::endl;
@@ -167,4 +145,12 @@ void Hulda::loadAudio() {
         return;
     }
     BASS_ChannelSetAttribute(hHuldaPunchChannel, BASS_ATTRIB_VOL, 1.3);
+}
+
+// Linear interpolation function for angles
+float Hulda::lerpAngle(float a, float b, float t) {
+    float delta = b - a;
+    while (delta < -PI) delta += 2 * PI;
+    while (delta > PI) delta -= 2 * PI;
+    return a + delta * t;
 }
