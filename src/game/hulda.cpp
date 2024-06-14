@@ -72,8 +72,6 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
         animator.playAnimation("data/animations/hulda/running.skanim");
         BASS_ChannelPlay(hHuldaIdleChannel, true);
         BASS_ChannelStop(hHuldaPunchChannel);
-        
-        
     }
 
     //else is_punching = false;

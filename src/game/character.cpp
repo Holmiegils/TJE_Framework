@@ -8,7 +8,7 @@
 
 
 Character::Character() : is_running(false), character_facing_rad(0), right_punch(true), is_punching(false), punch_duration(0),
-character_height(5.0f), immunity(0), sphere_collision_radius(4.0f), hit_hulda(false) {
+character_height(5.0f), immunity(0), sphere_collision_radius(4.0f), hit_hulda(false), recovering(false) {
     mesh_matrix.setIdentity();
 }
 
@@ -140,15 +140,24 @@ void Character::update(double seconds_elapsed, const Vector3& camera_front, floa
             punch_duration = 1;
 
             Game::instance->setStamina(-20.0f);
-
-
         }
+    }
+
+    if (immunity > 0) {
+        immunity -= seconds_elapsed;
+    }
+    else if (recovering) {
+        recovering = false;
+        animator.playAnimation("data/animations/character/idle.skanim");
+        position -= Vector3(6, 0, 0);
     }
 
     float distance_to_hulda = (hulda_pos - mesh_matrix.getTranslation()).length();
     Vector3 forward = mesh_matrix.frontVector();
     Vector3 to_character = (hulda_pos - mesh_matrix.getTranslation()).normalize();
     float dot_product = forward.dot(to_character);
+
+    bool collision_detected = false;
 
     if (moving) {
         if (!is_running) {
@@ -157,7 +166,6 @@ void Character::update(double seconds_elapsed, const Vector3& camera_front, floa
         }
 
         Vector3 collision_point, collision_normal;
-        bool collision_detected = false;
 
         for (Entity* child : Game::instance->root->children) {
             EntityCollider* collider = dynamic_cast<EntityCollider*>(child);
@@ -168,22 +176,18 @@ void Character::update(double seconds_elapsed, const Vector3& camera_front, floa
                 }
             }
         }
+    }
 
-        if (!collision_detected) {
-            mesh_matrix.setTranslation(position);
-            mesh_matrix.rotate(character_facing_rad, Vector3(0, 1, 0));
-            mesh_matrix.scale(0.05f, 0.05f, 0.05f);
-        }
+    if (!collision_detected) {
+        mesh_matrix.setTranslation(position);
+        mesh_matrix.rotate(character_facing_rad, Vector3(0, 1, 0));
+        mesh_matrix.scale(0.05f, 0.05f, 0.05f);
     }
 
     if (!moving && is_running || is_punching && punch_duration <= 0) {
         is_running = false;
         is_punching = false;
         animator.playAnimation("data/animations/character/idle.skanim");
-    }
-
-    if (immunity > 0) {
-        immunity -= seconds_elapsed;
     }
 
     if (distance_to_hulda <= 15 && punch_duration > 0.8 && punch_duration < 0.9) {
@@ -213,8 +217,15 @@ bool Character::isImmune() const {
     return immunity > 0;
 }
 
-void Character::setImmunity() {
-    immunity = 0.2;
+void Character::takeDamage(const Vector3& hulda_pos) {
+    immunity = 0.7f;
+    animator.playAnimation("data/animations/character/hit_reaction.skanim");
+    recovering = true;
+
+    Vector3 position = mesh_matrix.getTranslation();
+    Vector3 direction_to_hulda = (hulda_pos - position).normalize();
+
+    character_facing_rad = atan2(direction_to_hulda.z, direction_to_hulda.x) - PI/2;
 }
 
 bool Character::huldaIsHit() const {

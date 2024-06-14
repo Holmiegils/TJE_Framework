@@ -596,8 +596,8 @@ void Game::update(double seconds_elapsed) {
         hulda->update(seconds_elapsed, character->getPosition());
 
         if (hulda->heavyHit() && !character->isImmune()) {
-            current_health -= 50;
-            character->setImmunity();
+            current_health -= 30;
+            character->takeDamage(hulda->getPosition());
             BASS_ChannelPlay(hDamageChannel, true);
         }
         break;
