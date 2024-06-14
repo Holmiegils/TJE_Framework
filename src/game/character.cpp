@@ -158,7 +158,7 @@ void Character::update(double seconds_elapsed, const Vector3& camera_front, floa
 
     bool collision_detected = false;
 
-    if (moving) {
+    if (moving || recovering) {
         if (!is_running) {
             is_running = true;
             animator.playAnimation("data/animations/character/running.skanim");
@@ -177,7 +177,7 @@ void Character::update(double seconds_elapsed, const Vector3& camera_front, floa
         }
     }
 
-    if (!collision_detected) {
+    if (!collision_detected && !is_punching) {
         mesh_matrix.setTranslation(position);
         mesh_matrix.rotate(character_facing_rad, Vector3(0, 1, 0));
         mesh_matrix.scale(0.05f, 0.05f, 0.05f);
