@@ -546,11 +546,15 @@ void Game::update(double seconds_elapsed) {
 
         camera->lookAt(character->getPosition() - front * 35, viewpoint, Vector3(0, 1, 0));
 
+        if (hulda->heavyHit() && !character->isImmune()) {
+            current_health -= 30;
+            character->takeDamage(hulda->getPosition());
+            BASS_ChannelPlay(hDamageChannel, true);
+        }
+
         character->update(seconds_elapsed, front, camera_yaw, hulda->getPosition());
 
         //std::cout << "stamina: " << current_stamina << "," << "speed:" << character->getSpeed() << std::endl;
-
-
 
         // Handle stamina depletion and regeneration
         if (character->getSpeed() == 50.0f && current_stamina > 0) {
@@ -595,11 +599,6 @@ void Game::update(double seconds_elapsed) {
 
         hulda->update(seconds_elapsed, character->getPosition());
 
-        if (hulda->heavyHit() && !character->isImmune()) {
-            current_health -= 30;
-            character->takeDamage(hulda->getPosition());
-            BASS_ChannelPlay(hDamageChannel, true);
-        }
         break;
     }
 

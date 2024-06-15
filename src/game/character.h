@@ -53,6 +53,7 @@ private:
     bool hit_hulda;
     bool recovering;
     float speed;
+    float dodging;
 };
 
 #endif // CHARACTER_H
