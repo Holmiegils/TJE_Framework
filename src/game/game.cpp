@@ -154,6 +154,7 @@ void Game::renderQuad(Texture* texture, Vector2 position, Vector2 size, float sc
     shader->setUniform("u_texture", texture, 0);
     shader->setUniform("u_model", model);
     shader->setUniform("u_viewprojection", Matrix44::IDENTITY);
+    shader->setUniform("u_color", Vector4(1, 1, 1, 1));
 
     quad.render(GL_TRIANGLES);
     shader->disable();
@@ -365,7 +366,7 @@ void Game::renderGameScene() {
     hulda->render(camera);
 
     // Render the FPS, Draw Calls, etc.
-    drawText(2, 2, getGPUStats(), Vector3(1, 1, 1), 2);
+    //drawText(2, 2, getGPUStats(), Vector3(1, 1, 1), 2);
 }
 
 void Game::renderDeathOverlay() {
