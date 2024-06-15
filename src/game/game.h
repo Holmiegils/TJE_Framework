@@ -52,7 +52,7 @@ public:
 
     float current_health = 100.0f;
     const float max_health = 100.0f;
-    
+
     // Stamina variables
     float current_stamina = 100.0f;
     const float max_stamina = 100.0f;
@@ -66,6 +66,8 @@ public:
 
     Game(int window_width, int window_height, SDL_Window* window);
 
+    void initialize();
+
     void renderGameScene();
 
     // main functions
@@ -73,7 +75,6 @@ public:
     void renderMainMenu();
     void renderDebugCollisions();
 
-    
     void update(double dt);
 
     // input events
