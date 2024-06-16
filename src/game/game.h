@@ -62,6 +62,10 @@ public:
     void setStamina(float new_stamina);
     float getStamina() const;
 
+    void resetGame();
+
+    GameState getState();
+
     void playAudio();
 
     Game(int window_width, int window_height, SDL_Window* window);
@@ -96,6 +100,7 @@ public:
     void setState(GameState newState) {
         currentState = newState;
     }
+
 
 private:
     bool mouse_locked;

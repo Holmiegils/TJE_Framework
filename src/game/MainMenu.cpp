@@ -26,10 +26,12 @@ MainMenu::MainMenu() : shader(nullptr), active(true), selectedOption(0), gameSta
     initialize();
 
     menuItems.push_back({ "Start", START, Vector2(400, 300) });
+    menuItems.push_back({ "Restart", RESTART, Vector2(400, 350) }); // Add Restart option
     menuItems.push_back({ "Exit", EXIT, Vector2(400, 400) });
 
     lastKeyPressTime = std::chrono::high_resolution_clock::now();
 }
+
 
 MainMenu::~MainMenu() {}
 
@@ -77,6 +79,13 @@ void MainMenu::update(double seconds_elapsed) {
             active = false;
             gameStarted = true; // Set the flag to true when the game starts
             Game::instance->setState(STATE_PLAYING); // Change game state to playing
+            break;
+        case RESTART:
+            std::cout << "Restart Game" << std::endl;
+            active = false;
+            gameStarted = true;
+            Game::instance->resetGame(); // Call resetGame to restart the game
+            Game::instance->setState(STATE_PLAYING);
             break;
         case EXIT:
             std::cout << "Exit Game" << std::endl;

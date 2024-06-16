@@ -11,7 +11,7 @@
 #include "framework/entities/entity.h"
 #include "graphics/material.h"
 #include <framework/animation.h>
-#include <bass.h>
+#include <framework/extra/bass.h>
 
 class Hulda {
 public:

@@ -4,11 +4,11 @@
 #include "EntityCollider.h"
 #include "game.h"
 #include <iostream>
-#include "framework/bass.h"'
+#include <framework/extra/bass.h>
 
 
 Character::Character() : is_running(false), character_facing_rad(PI/2), right_punch(true), is_punching(false), punch_duration(0),
-character_height(5.0f), immunity(0), sphere_collision_radius(4.0f), hit_hulda(false), recovering(false) {
+character_height(5.0f), immunity(0), sphere_collision_radius(4.0f), hit_hulda(false), recovering(false), dodging(0) {
     mesh_matrix.setIdentity();
 }
 
@@ -26,6 +26,7 @@ void Character::initialize() {
 void Character::render(Camera* camera) {
     shader->enable();
 
+    shader->setUniform("u_tiling", 1.0f);
     shader->setUniform("u_color", Vector4(1, 1, 1, 1));
     shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
     shader->setUniform("u_texture", texture, 0);
@@ -55,9 +56,22 @@ void Character::update(double seconds_elapsed, const Vector3& camera_front, floa
     front.y = 0.0f; // DISCARD HEIGHT IN THE DIRECTION
 
     Vector3 position = mesh_matrix.getTranslation();
+
+    if (Input::isKeyPressed(SDL_SCANCODE_SPACE) && dodging <= 0) {
+        dodging = 1;
+        Game::instance->setStamina(-40.0f);
+    }
+
+    if (dodging > 0) {
+        dodging -= seconds_elapsed;
+        if (dodging > 0.9 && !recovering) {
+            position -= mesh_matrix.frontVector() * seconds_elapsed * 4000;
+        }
+    }
+
     bool moving = false;
 
-    if (Input::isKeyPressed(SDL_SCANCODE_W)) {
+    if (Input::isKeyPressed(SDL_SCANCODE_W) && !recovering) {
         moving = true;
         character_facing_rad = camera_yaw;
 
@@ -68,7 +82,7 @@ void Character::update(double seconds_elapsed, const Vector3& camera_front, floa
         }
     }
 
-    if (Input::isKeyPressed(SDL_SCANCODE_S)) {
+    if (Input::isKeyPressed(SDL_SCANCODE_S) && !recovering) {
         moving = true;
         character_facing_rad = camera_yaw - PI;
 
@@ -79,7 +93,7 @@ void Character::update(double seconds_elapsed, const Vector3& camera_front, floa
         }
     }
 
-    if (Input::isKeyPressed(SDL_SCANCODE_A)) {
+    if (Input::isKeyPressed(SDL_SCANCODE_A) && !recovering) {
         moving = true;
 
         if (Input::isKeyPressed(SDL_SCANCODE_W)) {
@@ -102,7 +116,7 @@ void Character::update(double seconds_elapsed, const Vector3& camera_front, floa
         }
     }
 
-    if (Input::isKeyPressed(SDL_SCANCODE_D)) {
+    if (Input::isKeyPressed(SDL_SCANCODE_D) && !recovering) {
         moving = true;
 
         if (Input::isKeyPressed(SDL_SCANCODE_W)) {
@@ -158,12 +172,12 @@ void Character::update(double seconds_elapsed, const Vector3& camera_front, floa
 
     bool collision_detected = false;
 
-    if (moving || recovering) {
-        if (!is_running) {
-            is_running = true;
-            animator.playAnimation("data/animations/character/running.skanim");
-        }
+    if (moving && !is_running) {
+        is_running = true;
+        animator.playAnimation("data/animations/character/running.skanim");
+    }
 
+    if (moving || recovering) {
         Vector3 collision_point, collision_normal;
 
         for (Entity* child : Game::instance->root->children) {

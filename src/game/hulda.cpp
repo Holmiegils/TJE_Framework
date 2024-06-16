@@ -4,9 +4,9 @@
 #include "EntityCollider.h"
 #include "game.h"
 #include <iostream>
-#include <bass.h>
+#include <framework/extra/bass.h>
 
-Hulda::Hulda() : health(50.0f), character_facing_rad(PI / 2), target_facing_rad(PI / 2), is_running(false), attack_duration(0),
+Hulda::Hulda() : health(100.0f), character_facing_rad(PI / 2), target_facing_rad(PI / 2), is_running(false), attack_duration(0),
 is_punching(false), hit_character(false), chase_threshold(100.0f), immunity(0) {
     mesh_matrix.setIdentity();
 }
@@ -18,7 +18,7 @@ void Hulda::initialize() {
 
     animator.playAnimation("data/animations/hulda/idle.skanim");
 
-    mesh_matrix.setTranslation(Vector3(200, 0, 0));
+    mesh_matrix.setTranslation(Vector3(506, 0, 360));
 
     loadAudio();
 }
@@ -26,6 +26,7 @@ void Hulda::initialize() {
 void Hulda::render(Camera* camera) {
     shader->enable();
 
+    shader->setUniform("u_tiling", 1.0f);
     shader->setUniform("u_color", Vector4(1, 1, 1, 1));
     shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
     shader->setUniform("u_texture", texture, 0);
@@ -39,6 +40,16 @@ void Hulda::render(Camera* camera) {
 
 void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
     animator.update(seconds_elapsed);
+
+    // Stop sounds if game state is DEATH or VICTORY
+    if (Game::instance->getState() == STATE_DEATH || Game::instance->getState() == STATE_VICTORY) {
+        BASS_ChannelStop(hHuldaIdleChannel);
+        BASS_ChannelStop(hHuldaPunchChannel);
+        initialize();
+        return;
+    }
+
+    //std::cerr << getPosition().x << "," << getPosition().z << std::endl;
 
     Vector3 position = mesh_matrix.getTranslation();
     float distance_to_character = (character_pos - position).length();
@@ -107,7 +118,9 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
             hit_character = false;
         }
     }
-    else hit_character = false;
+    else {
+        hit_character = false;
+    }
 }
 
 Vector3 Hulda::getPosition() const {
@@ -134,14 +147,14 @@ void Hulda::takeDamage(float damage) {
 void Hulda::loadAudio() {
     hHuldaIdleChannel = BASS_StreamCreateFile(false, "data/audio/hulda_idle.wav", 0, 0, 0);
     if (hHuldaIdleChannel == 0) {
-        std::cerr << "Error loading audio stream: char_death.wav" << std::endl;
+        std::cerr << "Error loading audio stream: hulda_idle.wav" << std::endl;
         return;
     }
     BASS_ChannelSetAttribute(hHuldaIdleChannel, BASS_ATTRIB_VOL, 1.0);
 
     hHuldaPunchChannel = BASS_StreamCreateFile(false, "data/audio/hulda_punch.wav", 0, 0, BASS_SAMPLE_LOOP);
     if (hHuldaPunchChannel == 0) {
-        std::cerr << "Error loading audio stream: char_death.wav" << std::endl;
+        std::cerr << "Error loading audio stream: hulda_punch.wav" << std::endl;
         return;
     }
     BASS_ChannelSetAttribute(hHuldaPunchChannel, BASS_ATTRIB_VOL, 1.3);

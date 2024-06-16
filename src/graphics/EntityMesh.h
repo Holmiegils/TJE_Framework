@@ -29,11 +29,17 @@ public:
         if (isInstanced) {
             for (const auto& model : models) {
                 shader->setUniform("u_model", model);
+                shader->setUniform("u_tiling", 4.0f);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
                 mesh->render(GL_TRIANGLES);
             }
         }
         else {
             shader->setUniform("u_model", model);
+            shader->setUniform("u_tiling", 4.0f);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
             mesh->render(GL_TRIANGLES);
         }
 

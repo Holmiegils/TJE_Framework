@@ -9,7 +9,7 @@
 #include "graphics/material.h"
 #include "graphics/EntityMesh.h"
 #include "EntityCollider.h"
-#include "framework/bass.h"
+#include <framework/extra/bass.h>
 #include <framework/animation.h>
 #include <cmath>
 #include <iostream>
@@ -155,6 +155,7 @@ void Game::renderQuad(Texture* texture, Vector2 position, Vector2 size, float sc
     shader->setUniform("u_model", model);
     shader->setUniform("u_viewprojection", Matrix44::IDENTITY);
     shader->setUniform("u_color", Vector4(1, 1, 1, 1));
+    shader->setUniform("u_tiling", 1.0f);
 
     quad.render(GL_TRIANGLES);
     shader->disable();
@@ -361,12 +362,12 @@ void Game::renderGameScene() {
     shader->enable();
     root->render(camera);
     shader->disable();
-
     // Render Hulda before the HUD
+    
     hulda->render(camera);
 
     // Render the FPS, Draw Calls, etc.
-    //drawText(2, 2, getGPUStats(), Vector3(1, 1, 1), 2);
+    // drawText(2, 2, getGPUStats(), Vector3(1, 1, 1), 2);
 }
 
 void Game::renderDeathOverlay() {
@@ -539,9 +540,13 @@ void Game::update(double seconds_elapsed) {
 
         camera->lookAt(character->getPosition() - front * 35, viewpoint, Vector3(0, 1, 0));
 
-        character->update(seconds_elapsed, front, camera_yaw, hulda->getPosition());
+        if (hulda->heavyHit() && !character->isImmune()) {
+            current_health -= 30;
+            character->takeDamage(hulda->getPosition());
+            BASS_ChannelPlay(hDamageChannel, true);
+        }
 
-        //std::cout << "stamina: " << current_stamina << "," << "speed:" << character->getSpeed() << std::endl;
+        character->update(seconds_elapsed, front, camera_yaw, hulda->getPosition());
 
         // Handle stamina depletion and regeneration
         if (character->getSpeed() == 50.0f && current_stamina > 0) {
@@ -580,17 +585,12 @@ void Game::update(double seconds_elapsed) {
         }
 
         if (character->huldaIsHit() && !hulda->isImmune()) {
-            hulda->takeDamage(20.0f);
+            hulda->takeDamage(10.0f);
             hulda->setImmunity();
         }
 
         hulda->update(seconds_elapsed, character->getPosition());
 
-        if (hulda->heavyHit() && !character->isImmune()) {
-            current_health -= 30;
-            character->takeDamage(hulda->getPosition());
-            BASS_ChannelPlay(hDamageChannel, true);
-        }
         break;
     }
 
@@ -600,6 +600,15 @@ void Game::update(double seconds_elapsed) {
             BASS_ChannelPlay(hDeathChannel, true);
             death_sound_played = true;
         }
+
+        // Check for restart key press
+        if (Input::isKeyPressed(SDLK_r)) {
+            resetGame();
+        }
+
+        // If in DEATH_STATE, show the main menu
+        mainMenu->setActive(true);
+        mainMenu->update(seconds_elapsed);
         break;
     }
 
@@ -609,6 +618,12 @@ void Game::update(double seconds_elapsed) {
             BASS_ChannelPlay(hVictroyChannel, true);
             hulda_death_sound_played = true;
         }
+
+        // Check for restart key press
+        if (Input::isKeyPressed(SDLK_r)) {
+            resetGame();
+        }
+
         break;
     }
 
@@ -698,3 +713,33 @@ void Game::setStamina(float new_stamina) {
 float Game::getStamina() const {
     return current_stamina;
 }
+
+void Game::resetGame() {
+    // Reset game variables
+    current_health = max_health;
+    current_stamina = max_stamina;
+    flask_uses = 3;
+    game_started = false;
+    death_sound_played = false;
+    hulda_death_sound_played = false;
+    tutorial_time = 0.0f;
+
+    // Reset character and Hulda
+    character->initialize();  
+    hulda->initialize();      
+
+    // Reset camera
+    camera_pitch = -0.5;
+    camera_yaw = -PI / 2;
+    camera->lookAt(Vector3(0.f, 1000.f, 1000.f), Vector3(0.f, 0.f, 0.f), Vector3(0.f, 1.f, 0.f));
+
+    // Re-initialize game state
+    currentState = STATE_MAIN_MENU;
+    mainMenu->setActive(true);
+    playAudio();
+}
+
+GameState Game::getState() {
+    return currentState;
+}
+    

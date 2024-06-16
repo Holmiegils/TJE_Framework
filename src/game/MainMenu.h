@@ -4,14 +4,19 @@
 #include "framework/input.h"
 #include "graphics/texture.h"
 #include "graphics/shader.h"
-#include "utils.h" // For drawText function
+#include "framework/utils.h" // For drawText function
 #include <vector>
 #include <string>
 #include <chrono>
 
 class MainMenu {
 public:
-    enum MenuOption { START, EXIT };
+    enum MenuOption {
+        START,
+        EXIT,
+        RESTART
+    };
+
 
     struct MenuItem {
         std::string text;
