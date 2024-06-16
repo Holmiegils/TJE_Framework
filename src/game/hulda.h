@@ -30,6 +30,12 @@ public:
 
     void loadAudio();
 
+    void set_chase_threshold() {
+        chase_threshold = 100.f;
+    }
+
+    void stopAudio();
+
 private:
     Mesh* mesh;
     Texture* texture;
@@ -53,6 +59,7 @@ private:
 
     // Added method for angle interpolation
     float lerpAngle(float a, float b, float t);
+    
 };
 
 #endif // HULDA_H

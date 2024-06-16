@@ -43,7 +43,7 @@ void MainMenu::render() {
 
     // Update the text of the first menu item based on whether the game has started
     menuItems[0].text = gameStarted ? "Continue" : "Start";
-
+    menuItems[1].text = gameStarted ? "Restart" : "";
     // Render menu items
     for (size_t i = 0; i < menuItems.size(); ++i) {
         Vector3 color = (i == selectedOption) ? Vector3(1, 1, 0) : Vector3(1, 1, 1);

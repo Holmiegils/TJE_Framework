@@ -41,15 +41,18 @@ void Hulda::render(Camera* camera) {
 void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
     animator.update(seconds_elapsed);
 
-    // Stop sounds if game state is DEATH or VICTORY
-    if (Game::instance->getState() == STATE_DEATH || Game::instance->getState() == STATE_VICTORY) {
-        BASS_ChannelStop(hHuldaIdleChannel);
-        BASS_ChannelStop(hHuldaPunchChannel);
-        initialize();
-        return;
-    }
+    // Debug: Log the current game state
+    //GameState currentState = Game::instance->getState();
+    //std::cerr << "Current Game State: " << currentState << std::endl;
 
-    //std::cerr << getPosition().x << "," << getPosition().z << std::endl;
+    //// Stop sounds if game state is DEATH or VICTORY
+    //if (currentState == STATE_DEATH || currentState == STATE_VICTORY) {
+    //    std::cerr << "State is DEATH or VICTORY, initializing Hulda" << std::endl;
+    //    initialize();
+    //    BASS_ChannelStop(hHuldaPunchChannel);
+    //    chase_threshold = 100.0f;
+    //    return;
+    //}
 
     Vector3 position = mesh_matrix.getTranslation();
     float distance_to_character = (character_pos - position).length();
@@ -61,6 +64,7 @@ void Hulda::update(double seconds_elapsed, Vector3 character_pos) {
     target_facing_rad = -atan2(direction.x, direction.z);
 
     if (distance_to_character < chase_threshold && distance_to_character > 15) {
+        chase_threshold = 999999999999999;
         moving = true;
 
         if (attack_duration <= 0) {
@@ -166,4 +170,8 @@ float Hulda::lerpAngle(float a, float b, float t) {
     while (delta < -PI) delta += 2 * PI;
     while (delta > PI) delta -= 2 * PI;
     return a + delta * t;
+}
+
+void Hulda::stopAudio() {
+    BASS_ChannelStop(hHuldaPunchChannel);
 }

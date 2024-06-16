@@ -57,9 +57,9 @@ void Character::update(double seconds_elapsed, const Vector3& camera_front, floa
 
     Vector3 position = mesh_matrix.getTranslation();
 
-    if (Input::isKeyPressed(SDL_SCANCODE_SPACE) && dodging <= 0) {
+    if (Input::isKeyPressed(SDL_SCANCODE_SPACE) && dodging <= 0 && Game::instance->getStamina() >= 20.0f) {
         dodging = 1;
-        Game::instance->setStamina(-40.0f);
+        Game::instance->setStamina(-20.0f);
     }
 
     if (dodging > 0) {

@@ -32,6 +32,8 @@ public:
     void update(double seconds_elapsed);
     void handleInput(SDL_KeyboardEvent event);
 
+    void change_menuItems();
+
     bool isActive() const { return active; }
     void setActive(bool value) { active = value; }
 

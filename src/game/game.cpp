@@ -37,6 +37,7 @@ Texture* heal_button_3 = NULL;
 Texture* attack_tut = NULL;
 Texture* heal_tut = NULL;
 Texture* movement_tut = NULL;
+Texture* dash_tut = NULL;
 Texture* death_screen_texture = NULL;
 Texture* victory_screen_texture = NULL;
 
@@ -275,6 +276,7 @@ void Game::initialize() {
     attack_tut = Texture::Get("data/textures/attack_tut.png");
     heal_tut = Texture::Get("data/textures/heal_tut.png");
     movement_tut = Texture::Get("data/textures/movement_tut.png");
+    dash_tut = Texture::Get("data/textures/dash_tut.png");
 
     death_screen_texture = Texture::Get("data/textures/you_died.png");
     victory_screen_texture = Texture::Get("data/textures/slain.png");
@@ -453,33 +455,39 @@ void Game::renderHUD() {
     Texture* hulda_image = Texture::Get("data/textures/hulda_name.png");
     renderQuad(hulda_image, hulda_image_position, hulda_image_size, 1.0f);
 
-    if (tutorial_time <= 10.0f) {
+    if (tutorial_time <= 15.0f) {
         // Define positions and sizes for tutorial images
-        Vector2 movement_tut_size = Vector2(0.9f, 0.7f); // Adjusted size for better visibility
-        Vector2 heal_tut_size = Vector2(0.3f, 0.3f); // Adjusted size for better visibility
-        Vector2 attack_tut_size = Vector2(0.3f, 0.3f); // Adjusted size for better visibility
+        Vector2 movement_tut_size = Vector2(0.9f, 0.7f);
+        Vector2 heal_tut_size = Vector2(0.3f, 0.3f);
+        Vector2 attack_tut_size = Vector2(0.3f, 0.3f);
+        Vector2 dash_tut_size = Vector2(0.3f, 0.3f);
 
         Vector2 attack_tut_position = Vector2(-0.4f, -0.3f);
         Vector2 heal_tut_position = Vector2(0.4f, -0.3f);
+        Vector2 dash_tut_position = Vector2(0.0f, -0.3f);
         Vector2 movement_tut_position = Vector2(0.0f, 0.3f);
 
         // Render tutorial images
         renderQuad(attack_tut, attack_tut_position, attack_tut_size, 1.0f);
         renderQuad(heal_tut, heal_tut_position, heal_tut_size, 1.0f);
         renderQuad(movement_tut, movement_tut_position, movement_tut_size, 1.0f);
+        renderQuad(dash_tut, dash_tut_position, dash_tut_size, 1.0f);
 
         // Define positions for the text below the images
-        Vector2 attack_text_position = Vector2(attack_tut_position.x + 0.12f, attack_tut_position.y + 0.55f);
-        Vector2 heal_text_position = Vector2(heal_tut_position.x - 0.27f, heal_tut_position.y + 0.55f);
         Vector2 movement_text_position = Vector2(movement_tut_position.x, movement_tut_position.y - 0.27f);
         Vector2 shift_text_position = Vector2(attack_tut_position.x + 0.12f, movement_tut_position.y - 0.27f);
 
+        Vector2 attack_text_position = Vector2(attack_tut_position.x + 0.10f, attack_tut_position.y + 0.55f);
+        Vector2 heal_text_position = Vector2(heal_tut_position.x - 0.27f, heal_tut_position.y + 0.55f);
+
         // Render text below tutorial images
-        drawText((attack_text_position.x + 0.5f) * window_width, (attack_text_position.y + 0.5f) * window_height, "Attack with Click", Vector3(1, 1, 1), 2);
-        drawText((heal_text_position.x + 0.5f) * window_width, (heal_text_position.y + 0.5f) * window_height, "Heal with E", Vector3(1, 1, 1), 2);
+        drawText((attack_text_position.x + 0.48f) * window_width, (attack_text_position.y + 0.5f) * window_height, "Attack with Click", Vector3(1, 1, 1), 2);
         drawText((movement_text_position.x + 0.5f) * window_width, (movement_text_position.y + 0.5f) * window_height, "Move with WASD", Vector3(1, 1, 1), 2);
         drawText((shift_text_position.x + 0.5f) * window_width, (shift_text_position.y + 0.5f) * window_height, "Shift to sprint", Vector3(1, 1, 1), 2);
+        drawText((heal_text_position.x + 0.5f) * window_width, (heal_text_position.y + 0.5f) * window_height, "Heal with E", Vector3(1, 1, 1), 2);
+        drawText((heal_text_position.x + 0.29f) * window_width, (heal_text_position.y + 0.48f) * window_height, "Space to dash", Vector3(1, 1, 1), 2);
     }
+
 
     glDisable(GL_BLEND);
 }
@@ -494,18 +502,21 @@ void Game::update(double seconds_elapsed) {
         if (!mainMenu->isActive()) {
             currentState = STATE_PLAYING;
             game_started = true;
+            std::cerr << "Switching to STATE_PLAYING" << std::endl;
         }
         break;
     }
 
     case STATE_PLAYING: {
         if (current_health <= 0) {
+            std::cerr << "Switching to STATE_DEATH" << std::endl;
             currentState = STATE_DEATH;
             death_sound_played = false;
             break;
         }
 
         if (hulda->getHealth() <= 0) {
+            std::cerr << "Switching to STATE_VICTORY" << std::endl;
             currentState = STATE_VICTORY;
             hulda_death_sound_played = false;
             break;
@@ -595,6 +606,8 @@ void Game::update(double seconds_elapsed) {
     }
 
     case STATE_DEATH: {
+        std::cerr << "In STATE_DEATH" << std::endl;
+        hulda->stopAudio();
         if (!death_sound_played) {
             BASS_ChannelStop(hSampleChannel);
             BASS_ChannelPlay(hDeathChannel, true);
@@ -613,6 +626,8 @@ void Game::update(double seconds_elapsed) {
     }
 
     case STATE_VICTORY: {
+        std::cerr << "In STATE_VICTORY" << std::endl;
+        hulda->stopAudio();
         if (!hulda_death_sound_played) {
             BASS_ChannelStop(hSampleChannel);
             BASS_ChannelPlay(hVictroyChannel, true);
@@ -726,7 +741,8 @@ void Game::resetGame() {
 
     // Reset character and Hulda
     character->initialize();  
-    hulda->initialize();      
+    hulda->initialize();     
+    hulda->set_chase_threshold();
 
     // Reset camera
     camera_pitch = -0.5;
