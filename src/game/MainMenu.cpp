@@ -12,6 +12,7 @@ Texture* backgroundTexture;
 
 void MainMenu::initialize() {
     backgroundTexture = Texture::Get("data/textures/back.png");
+
     shader = Shader::Get("data/shaders/basic.vs", "data/shaders/texture.fs");
 
     if (!backgroundTexture) {
@@ -41,6 +42,7 @@ void MainMenu::render() {
     // Render background using Game's renderQuad function
     Game::instance->renderQuad(backgroundTexture, Vector2(0, 0), Vector2(2, 2), 1.0f);
 
+
     // Update the text of the first menu item based on whether the game has started
     menuItems[0].text = gameStarted ? "Continue" : "Start";
     menuItems[1].text = gameStarted ? "Restart" : "";
@@ -57,11 +59,10 @@ void MainMenu::render() {
 void MainMenu::update(double seconds_elapsed) {
     if (!active) return;
 
-    // Debounce mechanism for arrow key sensitivity
     auto now = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastKeyPressTime);
 
-    if (duration.count() > 200) { // 200 ms debounce time
+    if (duration.count() > 200) {
         if (Input::isKeyPressed(SDL_SCANCODE_DOWN)) {
             selectedOption = (selectedOption + 1) % menuItems.size();
             lastKeyPressTime = now;
@@ -77,19 +78,19 @@ void MainMenu::update(double seconds_elapsed) {
         case START:
             std::cout << "Start Game" << std::endl;
             active = false;
-            gameStarted = true; // Set the flag to true when the game starts
-            Game::instance->setState(STATE_PLAYING); // Change game state to playing
+            gameStarted = true;
+            Game::instance->setState(STATE_PLAYING);
             break;
         case RESTART:
             std::cout << "Restart Game" << std::endl;
             active = false;
             gameStarted = true;
-            Game::instance->resetGame(); // Call resetGame to restart the game
+            Game::instance->resetGame();
             Game::instance->setState(STATE_PLAYING);
             break;
         case EXIT:
             std::cout << "Exit Game" << std::endl;
-            exit(0); // Terminate the program
+            Game::instance->setExitFlag(); // Set the exit flag
             break;
         }
     }

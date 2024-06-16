@@ -246,9 +246,8 @@ Game::Game(int window_width, int window_height, SDL_Window* window)
     elapsed_time = 0.0f;
     mouse_locked = false;
 
-    currentState = STATE_MAIN_MENU; // Ensure state is set to main menu
+    currentState = STATE_MAIN_MENU;
 
-    // Initialize the game
     initialize();
 }
 
@@ -496,6 +495,20 @@ bool is_walking_sound_playing = false;
 float walk_speed = 0.5f;
 
 void Game::update(double seconds_elapsed) {
+
+    if (shouldExit()) {
+        BASS_Free();
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        exit(0);
+    }
+
+    Matrix44 pitchmat;
+    Matrix44 yawmat;
+    Matrix44 unified;
+    Vector3 front;
+    Vector3 viewpoint;
+
     switch (currentState) {
     case STATE_MAIN_MENU: {
         mainMenu->update(seconds_elapsed);
@@ -743,6 +756,7 @@ void Game::resetGame() {
     character->initialize();  
     hulda->initialize();     
     hulda->set_chase_threshold();
+    hulda->setHealth();
 
     // Reset camera
     camera_pitch = -0.5;

@@ -101,6 +101,10 @@ public:
         currentState = newState;
     }
 
+    void setExitFlag() { must_exit = true; }
+
+    bool shouldExit() const { return must_exit; }
+
 
 private:
     bool mouse_locked;

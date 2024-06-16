@@ -36,6 +36,8 @@ public:
 
     void stopAudio();
 
+    void setHealth();
+
 private:
     Mesh* mesh;
     Texture* texture;

@@ -6,7 +6,7 @@
 #include <iostream>
 #include <framework/extra/bass.h>
 
-Hulda::Hulda() : health(100.0f), character_facing_rad(PI / 2), target_facing_rad(PI / 2), is_running(false), attack_duration(0),
+Hulda::Hulda() : health(30.0f), character_facing_rad(PI / 2), target_facing_rad(PI / 2), is_running(false), attack_duration(0),
 is_punching(false), hit_character(false), chase_threshold(100.0f), immunity(0) {
     mesh_matrix.setIdentity();
 }
@@ -174,4 +174,8 @@ float Hulda::lerpAngle(float a, float b, float t) {
 
 void Hulda::stopAudio() {
     BASS_ChannelStop(hHuldaPunchChannel);
+}
+
+void Hulda::setHealth() {
+    health = 100.0f;
 }
